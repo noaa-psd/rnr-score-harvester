@@ -22,20 +22,21 @@ NETCDF_HARVESTER_CONFIG__VALID = 'netcdf_harvester_config__valid.yaml'
 DATA_DIR = 'data'
 CONFIGS_DIR = 'configs'
 
-file_path = os.path.join(
+file_path_innov_stats = os.path.join(
     PYTEST_CALLING_DIR,
     DATA_DIR
 )
+
 VALID_CONFIG_DICT = {
-    'harvester_name': hv_registry.INNOV_TEMPERATURE_NETCDF,
+    'harvester_name': hv_registry.INNOV_NETCDF,
     'file_meta': {
-        'filepath': file_path,
-        'cycletime_str': '%Y%m%d%H',
-        'cycle': '2015120206',
-        'filename_str': 'innov_stats.metric.%Y%m%d%H.nc'
+        'filepath_format_str': file_path_innov_stats,
+        'filename_format_str': 'innov_stats.metric.%Y%m%d%H.nc',
+        'cycletime': datetime(2015,12,2,6)
     },
     'stats': ['bias', 'count', 'rmsd'],
     'metrics': ['temperature','spechumid','uvwind'],
+    'elevation_units': 'plevs',
     'regions': {
         'equatorial': {
             'lat_min': -5.0,
@@ -61,8 +62,10 @@ VALID_CONFIG_DICT = {
             'lat_min': -60.0,
             'lat_max': -20.0
         },
-    },'output_format': harvesters.PANDAS_DATAFRAME
+    },
+    'output_format': harvesters.PANDAS_DATAFRAME
 }
+
 
 def test_netcdf_harvester_config():
     """

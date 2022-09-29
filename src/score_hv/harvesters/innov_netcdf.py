@@ -7,13 +7,13 @@ Collection of methods to facilitate file/object retrieval
 """
 from collections import namedtuple
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 import netCDF4
 import pandas as pd
 
 from score_hv.config_base import ConfigInterface
 from score_hv import file_utils
-
+from score_hv import hv_registry as hvr
 valid_metrics = [
     'temperature',
     'spechumid',
@@ -33,6 +33,7 @@ PLEV_PRESURE_UNIT = 'mb'
 MIN_LONG = -180
 MAX_LONG = 180
 
+HRVSTR_NAME = 'innov_stats_'
 
 @dataclass
 class Region:
@@ -73,7 +74,7 @@ class Region:
         grid += f'({MIN_LONG},{self.min_lat}),'
         grid += f'({MIN_LONG},{self.max_lat})'
         grid += ')'
-        
+
 
 DEFAULT_REGIONS = [
     Region('equatorial', -5.0, 5.0),
@@ -101,19 +102,20 @@ class MetricMeta:
     """
     name: str
     file_meta: dict
+    filepath: str = field(default_factory=str, init=False)
     filename: str = field(default_factory=str, init=False)
     cycletime: datetime = field(init=False)
 
     def __post_init__(self):
         try:
             # build filename from the config meta data
-            file_path = self.file_meta.get('filepath')
-            cycle = self.file_meta.get('cycle')
-
-            self.cycletime = datetime.strptime(
-                cycle,
-                self.file_meta.get('cycletime_str')
-            )
+            filepath_format_str = self.file_meta.get('filepath_format_str')
+            filename_format_str = self.file_meta.get('filename_format_str')
+            self.cycletime = self.file_meta.get('cycletime')
+            if not isinstance(self.cycletime, datetime):
+                msg = f'cycle time {self.cycletime} must be a datetime ' \
+                    f'object, actually type: {type(self.cycletime)}.'
+                raise TypeError(msg) from err
 
             if (self.cycletime > MAX_CYCLE_DATETIME or
                 self.cycletime < MIN_CYCLE_DATETIME):
@@ -123,12 +125,16 @@ class MetricMeta:
                     f'{MIN_CYCLE_DATETIME}.'
                 raise ValueError(msg) from err
 
-            filename_str = self.file_meta.get('filename_str')
+            print(f'self.cycletime: {self.cycletime}')
+            filename_cycle_time = self.cycletime + timedelta(hours=6)
+            self.filepath = datetime.strftime(self.cycletime, filepath_format_str)
+            self.filename = self.filepath
+            self.filename += datetime.strftime(
+                filename_cycle_time ,
+                filename_format_str
+            )
 
-            new_fn = filename_str.replace('metric', self.name)
-
-            self.filename = file_path
-            self.filename += '/' + self.cycletime.strftime(new_fn)
+            self.filename = self.filename.replace('metric', self.name)
             file_utils.is_valid_readable_file(self.filename)
 
         except Exception as err:
@@ -146,6 +152,7 @@ class HarvestConfig:
     config_data: dict
     metrics: list = field(default_factory=list, init=False)
     stats: list = field(default_factory=list, init=False)
+    elevation_unit: str = field(default_factory=str, init=False)
     regions: list = field(default_factory=list, init=False)
     metrics_meta: list = field(default_factory=list, init=False)
     output_format: str = field(default_factory=str, init=False)
@@ -155,6 +162,7 @@ class HarvestConfig:
         self.set_stats()
         self.set_regions()
         self.set_metrics_meta()
+        self.set_elevation_unit()
         self.set_output_format()
 
     def set_metrics_meta(self):
@@ -185,7 +193,6 @@ class HarvestConfig:
                 msg = f'Problem creating metrics_meta dataclass - err {err}'
                 raise ValueError(msg) from err
 
-        print(f'metrics_meta: {self.metrics_meta}')
 
     def set_stats(self):
         """
@@ -202,6 +209,13 @@ class HarvestConfig:
             msg = f'\'stats\' key missing, must be one of ' \
                 f'({VALID_STATS}) - err: {err}'
             raise KeyError(msg) from err
+
+    def set_elevation_unit(self):
+        """
+        set the elevation_unit.  the
+        metric meta data helps define the metric file location
+        """
+        self.elevation_unit = self.config_data.get('elevation_unit')
 
 
     def set_regions(self):
@@ -232,7 +246,7 @@ class HarvestConfig:
         """
         self.output_format = self.config_data.get(
             'output_format',
-            hvs.NAMED_TUPLES_LIST
+            hvr.NAMED_TUPLES_LIST
         )
 
 
@@ -261,6 +275,12 @@ class InnovStatsCfg(ConfigInterface):
         ''' initialize HarvestConfig from config_data dict '''
         return HarvestConfig(self.config_data)
 
+    def get_elevation_units(self):
+        ''' return the elevation unit (plevs or depths) based on
+        harvest_config
+        '''
+        return self.harvest_config.elevation_unit
+
     def get_metrics_meta(self):
         ''' return all configured MetricsMeta objects '''
         return self.harvest_config.metrics_meta
@@ -281,6 +301,7 @@ class InnovStatsCfg(ConfigInterface):
 HarvestedData = namedtuple(
     'HarvestedData',
     [
+        'name',
         'cycletime',
         'region_name',
         'region_bounds',
@@ -336,11 +357,12 @@ class InnovStatsHv:
         metrics = self.config.get_metrics_meta()
         harvested_data = []
         for metric in metrics:
-
             ncfile = netCDF4.Dataset(metric.filename)
             try:
+                ev_units = self.config.get_elevation_units()
 
-                plevs = ncfile.variables['plevs'][...]
+                elevations = ncfile.variables[ev_units][...]
+                print(f'\'{ev_units}\': {elevations}')
                 regions = self.config.get_regions()
                 stats = self.config.get_stats()
 
@@ -350,15 +372,17 @@ class InnovStatsHv:
 
                         nc_varname = f'{stat}_{region.name}'
                         nc_vardata = ncfile.variables[nc_varname][...]
-                        vardata_len = len(nc_vardata)
+                        time_valid = metric.cycletime + timedelta(hours=6)
 
                         for idx in range(len(nc_vardata)):
+                            name = HRVSTR_NAME + metric.name + '_' + stat
                             item = HarvestedData(
-                                metric.cycletime,
+                                name,
+                                time_valid,
                                 region.name,
                                 region.grid,
-                                plevs[idx],
-                                PLEV_PRESURE_UNIT,
+                                elevations[idx],
+                                ev_units,
                                 metric.name,
                                 stat,
                                 nc_vardata[idx]
@@ -373,11 +397,11 @@ class InnovStatsHv:
 
             ncfile.close()
 
-        if self.config.get_output_format() == hvs.PANDAS_DATAFRAME:
+        if self.config.get_output_format() == hvr.PANDAS_DATAFRAME:
             harvested_data_pd = self.get_data_pandas_df(harvested_data)
             return harvested_data_pd
 
-        return harvested_data 
+        return harvested_data
 
 
     def get_data_pandas_df(self, data):

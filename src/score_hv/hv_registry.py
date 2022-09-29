@@ -12,7 +12,7 @@ from score_hv.harvesters.innov_netcdf import InnovStatsCfg, InnovStatsHv
 NAMED_TUPLES_LIST = 'tuples_list'
 PANDAS_DATAFRAME = 'pandas_dataframe'
 
-INNOV_TEMPERATURE_NETCDF = 'innov_temperature_netcdf'
+INNOV_STATS_NETCDF = 'innov_stats_netcdf'
 
 
 Harvester = namedtuple(
@@ -25,8 +25,8 @@ Harvester = namedtuple(
 )
 
 harvester_registry = {
-    'innov_temperature_netcdf': Harvester(
-        'innovation statistics temperature (netcdf)',
+    'innov_stats_netcdf': Harvester(
+        'innovation statistics for temperature, spechumid, uvwind, and salinity (netcdf)',
         InnovStatsCfg,
         InnovStatsHv
     )
