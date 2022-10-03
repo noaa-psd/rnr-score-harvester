@@ -123,6 +123,38 @@ class ObsInfoHv:
         """
         harvested_data = []
 
-        
+        # read in file
+        # get cycletime from DATA VALID AT
+        # find section for variable
+        # read variable
+
+        with open(self.config.harvest_filename) as log_file:
+            data_valid_line = log_file.readline().split()
+            cycletime = data_valid_line.last()
+
+            on_variable = False
+
+            for line in log_file:
+                if line.isspace():
+                    continue
+
+                cleaned_line = line.strip() # strip to remove whitespace so calls can be to first character of line
+                if cleaned_line[0] is '-':
+                    continue
+
+                if not on_variable and cleaned_line[0].isdigit():
+                    continue
+
+                # need to skip over the column headings
+                if on_variable and cleaned_line[0].isalpha():
+                    on_variable = False
+                    break
+
+                if not on_variable and cleaned_line.upper() == self.config.harvest_variable:
+                    on_variable = True
+
+                if on_variable and line[0].isdigit():
+                    # get the three values needed for harvested data
+
 
         return harvested_data
