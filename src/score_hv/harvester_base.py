@@ -9,6 +9,7 @@ import argparse
 
 from score_hv.yaml_utils import YamlLoader
 from score_hv import hv_registry as hvr
+from score_hv import file_utils
 
 def harvest(harvest_config):
     """

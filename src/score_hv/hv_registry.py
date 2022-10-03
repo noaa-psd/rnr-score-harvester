@@ -7,12 +7,14 @@ Collection of methods to facilitate file/object retrieval
 """
 from collections import namedtuple
 from score_hv.harvesters.innov_netcdf import InnovStatsCfg, InnovStatsHv
+from score_hv.harvesters.obs_log import ObsInfoCfg, ObsInfoHv
 
 
 NAMED_TUPLES_LIST = 'tuples_list'
 PANDAS_DATAFRAME = 'pandas_dataframe'
 
 INNOV_STATS_NETCDF = 'innov_stats_netcdf'
+OBS_INFO_LOG = 'obs_info_log'
 
 
 Harvester = namedtuple(
@@ -29,5 +31,11 @@ harvester_registry = {
         'innovation statistics for temperature, spechumid, uvwind, and salinity (netcdf)',
         InnovStatsCfg,
         InnovStatsHv
+    ),
+    'obs_info_log': Harvester(
+        'observation information for pressure, specific humidity, temperature, height, wind components, '
+        'precipitable h20, and relative humidity (log)',
+         ObsInfoCfg,
+         ObsInfoHv
     )
 }
