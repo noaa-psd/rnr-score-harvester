@@ -8,18 +8,19 @@ Collection of methods to facilitate observation information retrieval from log f
 from collections import namedtuple
 from dataclasses import dataclass, field
 import pandas as pd
+import os
 
 from score_hv.config_base import ConfigInterface
 from score_hv import file_utils
 from score_hv import hv_registry as hvr
 valid_variables = [
     'PRESSURE',
-    'SPECIFIC HUMIDTY',
+    'SPECIFIC HUMIDITY',
     'TEMPERATURE',
     'HEIGHT',
     'WIND COMPONENTS',
     'PRECIPITABLE H20',
-    'RELATIVE HUMIDTY'
+    'RELATIVE HUMIDITY'
 ]
 
 HRVSTER_NAME = 'obs_info_'
@@ -37,6 +38,7 @@ HarvestedData = namedtuple(
     ],
 )
 
+
 @dataclass
 class ObsInfoCfg(ConfigInterface):
     """
@@ -51,12 +53,41 @@ class ObsInfoCfg(ConfigInterface):
     file_meta: FileMeta - parsed configuration data
 
     """
+    harvest_variable: str
+    harvest_filename: str
     config_data: dict = field(default_factory=dict)
-    harvest_config: dict = field(default_factory=dict, init=False)
 
     def __post_init__(self):
-        self.harvest_config = self.set_config()
+         self.set_config()
 
+    # function to set configuration variables from given dictionary
+    def set_config(self):
+        try:
+            self.harvest_variable = self.config_data.get('variable')
+        except Exception as err:
+            msg = f'\'variable\' key missing, must be one of ' \
+                  f'({valid_variables}) - err: {err}'
+            raise KeyError(msg) from err
+
+        try:
+            self.harvest_filename = self.config.data.get('filename')
+        except Exception as err:
+            msg = f'\'filename\' key missing, must be included for log file' \
+                f' - err: {err}'
+            raise KeyError(msg) from err
+
+    # function to validate the values of the variable and filename for harvest
+    # invalid values raise a value error
+    def validate(self):
+        if self.harvest_variable not in valid_variables :
+            msg = f'given variable {self.harvest_variable} is ' \
+                      f'not a valid variable type for harvester. valid options: {valid_variables}'
+            raise ValueError(msg)
+
+        if not os.path.exists(self.harvest_filename) :
+            msg = f'given filename {self.harvest_filename} is not valid. ' \
+                  f'valid filename required for harvester'
+            raise ValueError(msg)
 
 
 @dataclass
@@ -68,7 +99,7 @@ class ObsInfoHv:
     Parameters:
     -----------
     config: ObsInfoCfg object containing information used to determine
-            how to parse the log file for which variable
+            which variable to parse the log file for
 
     Methods:
     --------
@@ -91,4 +122,7 @@ class ObsInfoHv:
                         number_obs, number_obs_qc_0to3
         """
         harvested_data = []
+
+        
+
         return harvested_data
