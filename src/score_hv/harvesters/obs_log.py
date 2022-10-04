@@ -149,7 +149,6 @@ class ObsInfoHv:
                 if on_variable and cleaned_line[0].isalpha():
                     if cleaned_line[0:3] == 'typ':
                         continue
-                    on_variable = False
                     break
 
                 if not on_variable and cleaned_line.upper() == self.config.harvest_variable:
@@ -157,11 +156,17 @@ class ObsInfoHv:
 
                 if on_variable and line[0].isdigit():
                     split = cleaned_line.split()
-                    typ = split[0]
-                    tot = split[1]
-                    _0to3 = split[2]
-                    # remove the | marks in between. Should I clean them off or split around?
-                    # get the three values needed for harvested data
-
+                    type = split[0].replace('|', '')
+                    num_obs = split[1].replace('|', '')
+                    num_obs_qc = split[2].replace('|', '')
+                    item = HarvestedData(
+                        self.config.harvest_filename,
+                        cycletime,
+                        self.config.harvest_variable,
+                        type,
+                        num_obs,
+                        num_obs_qc
+                    )
+                    harvested_data.append(item)
 
         return harvested_data
