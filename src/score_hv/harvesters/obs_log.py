@@ -19,7 +19,7 @@ valid_variables = [
     'TEMPERATURE',
     'HEIGHT',
     'WIND COMPONENTS',
-    'PRECIPITABLE H20',
+    'PRECIPITABLE H2O',
     'RELATIVE HUMIDITY'
 ]
 
@@ -60,6 +60,7 @@ class ObsInfoCfg(ConfigInterface):
 
     def __post_init__(self):
          self.set_config()
+         self.validate()
 
     # function to set configuration variables from given dictionary
     def set_config(self):
@@ -80,6 +81,15 @@ class ObsInfoCfg(ConfigInterface):
     # function to validate the values of the variable and filename for harvest
     # invalid values raise a value error
     def validate(self):
+        if self.harvest_variable is None:
+            msg = f'\'variable\' key is missing, must be one of ' \
+                  f'({valid_variables})'
+            raise KeyError(msg)
+
+        if self.harvest_filename is None:
+            msg = f'\'filename\' key missing, must be included for log file'
+            raise KeyError(msg)
+
         if self.harvest_variable not in valid_variables :
             msg = f'given variable {self.harvest_variable} is ' \
                       f'not a valid variable type for harvester. valid options: {valid_variables}'
