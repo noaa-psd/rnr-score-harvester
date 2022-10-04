@@ -147,6 +147,8 @@ class ObsInfoHv:
 
                 # need to skip over the column headings
                 if on_variable and cleaned_line[0].isalpha():
+                    if cleaned_line[0:3] == 'typ':
+                        continue
                     on_variable = False
                     break
 
@@ -154,6 +156,11 @@ class ObsInfoHv:
                     on_variable = True
 
                 if on_variable and line[0].isdigit():
+                    split = cleaned_line.split()
+                    typ = split[0]
+                    tot = split[1]
+                    _0to3 = split[2]
+                    # remove the | marks in between. Should I clean them off or split around?
                     # get the three values needed for harvested data
 
 
