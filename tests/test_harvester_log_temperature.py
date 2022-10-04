@@ -16,13 +16,15 @@ from score_hv.yaml_utils import YamlLoader
 
 PYTEST_CALLING_DIR = pathlib.Path(__file__).parent.resolve()
 LOG_HARVESTER_CONFIG__VALID = 'log_harvester_config__valid.yaml'
+LOG_HARVESTER_DATA__VALID = 'test_log_cmpbqm.txt'
 
 DATA_DIR = 'data'
 CONFIGS_DIR = 'configs'
 
 file_path_obs_data = os.path.join(
     PYTEST_CALLING_DIR,
-    DATA_DIR
+    DATA_DIR,
+    LOG_HARVESTER_DATA__VALID
 )
 
 VALID_CONFIG_DICT = {
@@ -35,3 +37,4 @@ def test_log_harvester_config():
     data1 = harvest(VALID_CONFIG_DICT)
     print(f'harvested {len(data1)} records using config: {VALID_CONFIG_DICT}')
     assert len(data1) > 0
+    assert len(data1) is 11

@@ -29,10 +29,9 @@ HarvestedData = namedtuple(
     'HarvestedData',
     [
         'file_name',
-        'cycletime',
+        'cycle_time',
         'variable',
-        'instrument type',
-        'number_obs',
+        'instrument_type',
         'number_obs',
         'number_obs_qc_0to3'
     ],
@@ -50,12 +49,14 @@ class ObsInfoCfg(ConfigInterface):
     config_data: dict - contains configuration data parsed from
                 either an input yaml file or input dict
 
-    file_meta: FileMeta - parsed configuration data
+    harvest_variable: string name of variable to parse from config
+
+    harvest_filename: string name of file to parse found in config
 
     """
-    harvest_variable: str
-    harvest_filename: str
     config_data: dict = field(default_factory=dict)
+    harvest_variable: str = ''
+    harvest_filename: str = ''
 
     def __post_init__(self):
          self.set_config()
@@ -70,7 +71,7 @@ class ObsInfoCfg(ConfigInterface):
             raise KeyError(msg) from err
 
         try:
-            self.harvest_filename = self.config.data.get('filename')
+            self.harvest_filename = self.config_data.get('filename')
         except Exception as err:
             msg = f'\'filename\' key missing, must be included for log file' \
                 f' - err: {err}'
@@ -130,7 +131,7 @@ class ObsInfoHv:
 
         with open(self.config.harvest_filename) as log_file:
             data_valid_line = log_file.readline().split()
-            cycletime = data_valid_line.last()
+            cycletime = data_valid_line.pop()
 
             on_variable = False
 
