@@ -34,7 +34,7 @@ harvester_registry = {
     ),
     'obs_info_log': Harvester(
         'observation information for pressure, specific humidity, temperature, height, wind components, '
-        'precipitable h20, and relative humidity (log)',
+        'precipitable h2o, and relative humidity (log)',
          ObsInfoCfg,
          ObsInfoHv
     )

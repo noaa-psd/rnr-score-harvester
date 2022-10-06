@@ -1,4 +1,0 @@
----
-harvester_name: 'obs_info_log'
-filename: '/Users/jknezha/PycharmProjects/score-hv/tests/data/test_log_cmpbqm.txt'
-variable: 'TEMPERATURE'

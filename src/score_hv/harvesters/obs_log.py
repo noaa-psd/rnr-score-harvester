@@ -27,7 +27,7 @@ HarvestedData = namedtuple(
     'HarvestedData',
     [
         'file_name',
-        'cycle_time',
+        'cycletime',
         'variable',
         'instrument_type',
         'number_obs',
@@ -77,15 +77,16 @@ class ObsInfoCfg(ConfigInterface):
             raise KeyError(msg) from err
 
     # function to validate the values of the variable and filename for harvest
+    # empty values raise a key error
     # invalid values raise a value error
     def validate(self):
         if self.harvest_variable is None:
-            msg = f'\'variable\' key is missing, must be one of ' \
+            msg = f'\'variable\' key is empty, must be one of ' \
                   f'({valid_variables})'
             raise KeyError(msg)
 
         if self.harvest_filename is None:
-            msg = f'\'filename\' key missing, must be included for log file'
+            msg = f'\'filename\' key is empty, must be included for log file'
             raise KeyError(msg)
 
         if self.harvest_variable.upper() not in valid_variables :
@@ -122,7 +123,7 @@ class ObsInfoHv:
         Harvests observation information (instrument type, number of observations,
         and number of high quality observations) for a specified variable of the
         set {Pressure, Specific Humidity, Temperature, Height, Wind Components,
-        Precipitable H20, Relative Humidity}. Input file is a log text file.
+        Precipitable H2O, Relative Humidity}. Input file is a log text file.
 
         Returns
         -------
