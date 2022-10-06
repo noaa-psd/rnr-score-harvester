@@ -3,7 +3,7 @@ Work by Jessica Knezha
 
 Unit tests for observation information log harvester
 Tests each variable for valid number of outputs
-Tests dictionary and yaml input configurations
+Tests valid dictionary and yaml input configurations covering all valid variables and various capitalization
 Tests for invalid config inputs
 """
 
@@ -72,16 +72,41 @@ def test_log_harvester_pressure_valid_dict():
 
 
 # SPECIFIC HUMIDITY TESTS
-VALID_CONFIG_DICT_SHUM = {
+VALID_CONFIG_DICT_SHUM_upper = {
     'harvester_name' : hv_registry.OBS_INFO_LOG,
     'filename' : file_path_obs_data,
     'variable' : 'SPECIFIC HUMIDITY'
 }
 
+VALID_CONFIG_DICT_SHUM_regular = {
+    'harvester_name' : hv_registry.OBS_INFO_LOG,
+    'filename' : file_path_obs_data,
+    'variable' : 'Specific Humidity'
+}
 
-def test_log_harvester_shum_valid_dict():
-    data1 = harvest(VALID_CONFIG_DICT_SHUM)
-    print(f'harvested {len(data1)} records using config: {VALID_CONFIG_DICT_SHUM}')
+VALID_CONFIG_DICT_SHUM_lower = {
+    'harvester_name' : hv_registry.OBS_INFO_LOG,
+    'filename' : file_path_obs_data,
+    'variable' : 'specific humidity'
+}
+
+def test_log_harvester_shum_valid_dict_uppercase():
+    data1 = harvest(VALID_CONFIG_DICT_SHUM_upper)
+    print(f'harvested {len(data1)} records using config: {VALID_CONFIG_DICT_SHUM_upper}')
+    assert len(data1) > 0
+    assert len(data1) is 7
+
+
+def test_log_harvester_shum_valid_dict_regularcase():
+    data1 = harvest(VALID_CONFIG_DICT_SHUM_regular)
+    print(f'harvested {len(data1)} records using config: {VALID_CONFIG_DICT_SHUM_regular}')
+    assert len(data1) > 0
+    assert len(data1) is 7
+
+
+def test_log_harvester_shum_valid_dict_lowercase():
+    data1 = harvest(VALID_CONFIG_DICT_SHUM_lower)
+    print(f'harvested {len(data1)} records using config: {VALID_CONFIG_DICT_SHUM_lower}')
     assert len(data1) > 0
     assert len(data1) is 7
 
@@ -145,7 +170,26 @@ def test_log_harvester_h2o_valid_dict():
     assert len(data1) is 1
 
 
-# INVALID TESTS
+# INVALID INPUT TESTS
+def test_log_invalid_no_file():
+    invalid_config = {
+        'harvester_name': hv_registry.OBS_INFO_LOG,
+        'variable': 'TEMPERATURE'
+    }
+    with pytest.raises(KeyError):
+        data1 = harvest(invalid_config)
+
+
+def test_log_empty_filename():
+    invalid_config = {
+        'harvester_name': hv_registry.OBS_INFO_LOG,
+        'filename': '',
+        'variable': 'TEMPERATURE'
+    }
+    with pytest.raises(ValueError):
+        data1 = harvest(invalid_config)
+
+
 def test_log_invalid_var():
     invalid_config = {
         'harvester_name': hv_registry.OBS_INFO_LOG,
@@ -156,19 +200,30 @@ def test_log_invalid_var():
         data1 = harvest(invalid_config)
 
 
-def test_log_invalid_no_file():
-    invalid_config = {
-        'harvester_name': hv_registry.OBS_INFO_LOG,
-        'variable': 'TEMPERATURE'
-    }
-    with pytest.raises(KeyError):
-        data1 = harvest(invalid_config)
-
-
 def test_log_invalid_no_var():
     invalid_config = {
         'harvester_name': hv_registry.OBS_INFO_LOG,
         'filename': file_path_obs_data
     }
     with pytest.raises(KeyError):
+        data1 = harvest(invalid_config)
+
+
+def test_log_invalid_misspelled_var():
+    invalid_config = {
+        'harvester_name': hv_registry.OBS_INFO_LOG,
+        'filename': file_path_obs_data,
+        'variable': 'presure'
+    }
+    with pytest.raises(ValueError):
+        data1 = harvest(invalid_config)
+
+
+def test_log_invalid_empty_var():
+    invalid_config = {
+        'harvester_name': hv_registry.OBS_INFO_LOG,
+        'filename': file_path_obs_data,
+        'variable': ''
+    }
+    with pytest.raises(ValueError):
         data1 = harvest(invalid_config)

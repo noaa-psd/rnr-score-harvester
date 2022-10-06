@@ -7,12 +7,10 @@ Collection of methods to facilitate observation information retrieval from log f
 
 from collections import namedtuple
 from dataclasses import dataclass, field
-import pandas as pd
 import os
 
 from score_hv.config_base import ConfigInterface
-from score_hv import file_utils
-from score_hv import hv_registry as hvr
+
 valid_variables = [
     'PRESSURE',
     'SPECIFIC HUMIDITY',
@@ -23,7 +21,7 @@ valid_variables = [
     'RELATIVE HUMIDITY'
 ]
 
-HRVSTER_NAME = 'obs_info_'
+HARVESTER_NAME = 'obs_info_log'
 
 HarvestedData = namedtuple(
     'HarvestedData',
@@ -90,7 +88,7 @@ class ObsInfoCfg(ConfigInterface):
             msg = f'\'filename\' key missing, must be included for log file'
             raise KeyError(msg)
 
-        if self.harvest_variable not in valid_variables :
+        if self.harvest_variable.upper() not in valid_variables :
             msg = f'given variable {self.harvest_variable} is ' \
                       f'not a valid variable type for harvester. valid options: {valid_variables}'
             raise ValueError(msg)
@@ -134,37 +132,37 @@ class ObsInfoHv:
         """
         harvested_data = []
 
-        # read in file
-        # get cycletime from DATA VALID AT
-        # find section for variable
-        # read variable
-
         with open(self.config.harvest_filename) as log_file:
             data_valid_line = log_file.readline().split()
-            cycletime = data_valid_line.pop()
+            cycletime = data_valid_line.pop()  # last item represents the cycletime for the log file
 
             on_variable = False
-
             for line in log_file:
+                # skip any lines which are all whitespace
                 if line.isspace():
                     continue
 
                 cleaned_line = line.strip() # strip to remove whitespace so calls can be to first character of line
+                # skip lines which are all ----
                 if cleaned_line[0] is '-':
                     continue
 
+                # skip lines which are data for a different variable
+                # assumes all data lines start with integer for instrument type per guidelines
                 if not on_variable and cleaned_line[0].isdigit():
                     continue
 
-                # need to skip over the column headings
+                # either on a heading row for the variable or reached the next variable in the list
                 if on_variable and cleaned_line[0].isalpha():
                     if cleaned_line[0:3] == 'typ':
                         continue
                     break
 
-                if not on_variable and cleaned_line.upper() == self.config.harvest_variable:
+                # reached the beginning of the section for the variable to harvest, set flag
+                if not on_variable and cleaned_line.upper() == self.config.harvest_variable.upper():
                     on_variable = True
 
+                # harvest line of data and save to list
                 if on_variable and line[0].isdigit():
                     split = cleaned_line.split()
                     type = split[0].replace('|', '')
