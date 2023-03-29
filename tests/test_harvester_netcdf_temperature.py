@@ -9,6 +9,7 @@ import os
 import pathlib
 import pytest
 import yaml
+from datetime import datetime
 
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
@@ -30,13 +31,13 @@ file_path_innov_stats = os.path.join(
 VALID_CONFIG_DICT = {
     'harvester_name': hv_registry.INNOV_NETCDF,
     'file_meta': {
-        'filepath_format_str': file_path_innov_stats,
+        'filepath_format_str': '%s/' % file_path_innov_stats,
         'filename_format_str': 'innov_stats.metric.%Y%m%d%H.nc',
-        'cycletime': datetime(2015,12,2,6)
+        'cycletime': datetime(2015,12,1,0)
     },
     'stats': ['bias', 'count', 'rmsd'],
     'metrics': ['temperature','spechumid','uvwind'],
-    'elevation_units': 'plevs',
+    'elevation_unit': 'plevs',
     'regions': {
         'equatorial': {
             'lat_min': -5.0,
@@ -63,7 +64,7 @@ VALID_CONFIG_DICT = {
             'lat_max': -20.0
         },
     },
-    'output_format': harvesters.PANDAS_DATAFRAME
+    'output_format': hv_registry.PANDAS_DATAFRAME
 }
 
 

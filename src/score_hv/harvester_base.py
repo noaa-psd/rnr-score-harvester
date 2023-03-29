@@ -50,7 +50,7 @@ def harvest(harvest_config):
         msg = f'could not find harvester from config: {harvest_dict}'
         raise KeyError(msg) from err
 
-    print(f'harvester.name: {harvester.name}')
+    print(f'harvester_name: {harvester_name}')
     config = harvester.config_handler(harvest_dict)
     print(f'type(config): {type(config)}')
     return harvester.data_parser(config).get_data()
