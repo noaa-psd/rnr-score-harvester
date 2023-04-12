@@ -275,7 +275,7 @@ class InnovStatsCfg(ConfigInterface):
         ''' initialize HarvestConfig from config_data dict '''
         return HarvestConfig(self.config_data)
 
-    def get_elevation_units(self):
+    def get_elevation_unit(self):
         ''' return the elevation unit (plevs or depths) based on
         harvest_config
         '''
@@ -306,7 +306,7 @@ HarvestedData = namedtuple(
         'region_name',
         'region_bounds',
         'elevation',
-        'elevation_units',
+        'elevation_unit',
         'metric',
         'stat',
         'value'
@@ -358,43 +358,37 @@ class InnovStatsHv:
         harvested_data = []
         for metric in metrics:
             ncfile = netCDF4.Dataset(metric.filename)
-            try:
-                ev_units = self.config.get_elevation_units()
+            ev_unit = self.config.get_elevation_unit()
 
-                elevations = ncfile.variables[ev_units][...]
-                print(f'\'{ev_units}\': {elevations}')
-                regions = self.config.get_regions()
-                stats = self.config.get_stats()
+            elevations = ncfile.variables[ev_unit][...]
+            print(f'\'{ev_unit}\': {elevations}')
+            regions = self.config.get_regions()
+            stats = self.config.get_stats()
 
-                for region in regions:
+            for region in regions:
 
-                    for stat in stats:
+                for stat in stats:
 
-                        nc_varname = f'{stat}_{region.name}'
-                        nc_vardata = ncfile.variables[nc_varname][...]
-                        time_valid = metric.cycletime + timedelta(hours=6)
+                    nc_varname = f'{stat}_{region.name}'
+                    nc_vardata = ncfile.variables[nc_varname][...]
+                    time_valid = metric.cycletime + timedelta(hours=6)
 
-                        for idx in range(len(nc_vardata)):
-                            name = HRVSTR_NAME + metric.name + '_' + stat
-                            item = HarvestedData(
-                                name,
-                                time_valid,
-                                region.name,
-                                region.grid,
-                                elevations[idx],
-                                ev_units,
-                                metric.name,
-                                stat,
-                                nc_vardata[idx]
-                            )
+                    for idx in range(len(nc_vardata)):
+                        name = HRVSTR_NAME + metric.name + '_' + stat
+                        item = HarvestedData(
+                            name,
+                            time_valid,
+                            region.name,
+                            region.grid,
+                            elevations[idx],
+                            ev_unit,
+                            metric.name,
+                            stat,
+                            nc_vardata[idx]
+                        )
 
-                            harvested_data.append(item)
-
-            except Exception as err:
-                msg = f'problem parsing netcdf file {metric.filename} - ' \
-                    f'err: {err}'
-                raise ValueError(msg) from err
-
+                        harvested_data.append(item)
+            
             ncfile.close()
 
         if self.config.get_output_format() == hvr.PANDAS_DATAFRAME:
