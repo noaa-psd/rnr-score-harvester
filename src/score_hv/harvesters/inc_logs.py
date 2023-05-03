@@ -12,7 +12,7 @@ from dataclasses import field
 
 from score_hv.config_base import ConfigInterface
 
-HRVSTER_NAME = 'inc_logs'
+HARVESTER_NAME = 'inc_logs'
 VALID_STATISTICS = ('mean', 'RMS')
 VALID_VARIABLES = ['pt_inc', 's_inc', 'u_inc', 'v_inc', 'SSH', 'Salinity',
                    'Temperature', 'Speed of Currents', 'o3mr_inc', 'sphum_inc',
@@ -44,12 +44,7 @@ class LogIncCfg(ConfigInterface):
     def set_config(self):
         """ function to set configuration variables from given dictionary
         """ 
-        try:
-            self.harvest_filename = self.config_data.get('filename')
-        except Exception as err:
-            msg = '%s key missing' % key
-            raise KeyError(msg) from err
-        
+        self.harvest_filename = self.config_data.get('filename')
         self.set_stats()
         self.set_variables()
     
@@ -57,31 +52,26 @@ class LogIncCfg(ConfigInterface):
         """
         set the variables specified by the config dict
         """
-        try:
-            self.variables = self.config_data.get('variable')
-            for var in self.variables:
-                if var not in VALID_VARIABLES:
-                    msg = f'Invalid variable, must be one of \'{VALID_VARIABLES}\''
-                    raise KeyError(msg)
-        except Exception as err:
-            msg = f'\'variables\' key missing, must be one of ' \
-                f'({VALID_VARIABLES}) - err: {err}'
-            raise KeyError(msg) from err
+        
+        self.variables = self.config_data.get('variable')
+        for var in self.variables:
+            if var not in VALID_VARIABLES:
+                msg = ("'%s' is not a supported variable to harvest from the incrememt log files. "
+                       "Please reconfigure the input dictionary using only the "
+                       "following variables: %r" % (var, VALID_VARIABLES))
+                raise KeyError(msg)
 
     def set_stats(self):
         """
         set the statistics specified by the config dict
         """
-        try:
-            self.stats = self.config_data.get('statistic')
-            for stat in self.stats:
-                if stat not in VALID_STATISTICS:
-                    msg = f'Invalid statistic, must be one of \'{VALID_STATISTICS}\''
-                    raise KeyError(msg)
-        except Exception as err:
-            msg = f'\'statistics\' key missing, must be one of ' \
-                f'({VALID_STATISTICS}) - err: {err}'
-            raise KeyError(msg) from err
+        self.stats = self.config_data.get('statistic')
+        for stat in self.stats:
+            if stat not in VALID_STATISTICS:
+                msg = ("'%s' is not a supported statistic to harvest from the incrememt log files. "
+                       "Please reconfigure the input dictionary using only the "
+                       "following statistics: %r" % (stat, VALID_STATISTICS))
+                raise KeyError(msg)
     
     def get_stats(self):
         ''' return list of all stat types based on harvest_config '''

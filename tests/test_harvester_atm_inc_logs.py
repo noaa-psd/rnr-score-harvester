@@ -13,7 +13,6 @@ from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
 
 PYTEST_CALLING_DIR = pathlib.Path(__file__).parent.resolve()
-#LOG_HARVESTER_CONFIG__VALID = 'log_harvestor_config__valid.yaml'
 LOG_HARVESTER_ATM__VALID = 'calc_atm_inc.out'
 
 DATA_DIR = 'data'
@@ -38,7 +37,6 @@ def test_ozone_mixing_ratio_inc(varname='o3mr_inc'):
     for i, variable in enumerate(VALID_CONFIG_DICT['variable']):
         if variable == varname:
             variable_rank = i
-    assert VALID_CONFIG_DICT['variable'][variable_rank]==varname
     assert VALID_CONFIG_DICT['variable'][variable_rank]==varname
     
     n_stats = len(VALID_CONFIG_DICT['statistic'])
@@ -83,11 +81,10 @@ def test_delta_pressure_inc():
 def test_delta_z_inc():
     harvest_data('delz_inc', -0.319E-01, 0.407E+00)
 
-def harvest_data(varname, expected_ans_0, expected_ans_1):
+def harvest_data(varname, expected_ans_mean, expected_ans_rms):
     for i, variable in enumerate(VALID_CONFIG_DICT['variable']):
         if variable == varname:
             variable_rank = i
-    assert VALID_CONFIG_DICT['variable'][variable_rank]==varname
     assert VALID_CONFIG_DICT['variable'][variable_rank]==varname
     
     n_stats = len(VALID_CONFIG_DICT['statistic'])
@@ -111,9 +108,9 @@ def harvest_data(varname, expected_ans_0, expected_ans_1):
         assert valid_statistic == 'mean' or valid_statistic == 'RMS'
         
         if valid_statistic == 'mean':
-            assert valid_tuple_subset[i][3] == expected_ans_0
+            assert valid_tuple_subset[i][3] == expected_ans_mean
         elif valid_statistic == 'RMS': # RMS
-            assert valid_tuple_subset[i][3] == expected_ans_1
+            assert valid_tuple_subset[i][3] == expected_ans_rms
 
 def run_tests():
     """ Run the test suite

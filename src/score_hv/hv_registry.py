@@ -15,7 +15,6 @@ PANDAS_DATAFRAME = 'pandas_dataframe'
 
 INNOV_NETCDF = 'innov_stats_netcdf'
 OBS_INFO_LOG = 'obs_info_log'
-
 INC_LOGS = 'inc_logs'
 
 Harvester = namedtuple('Harvester', ('name', 'config_handler', 'data_parser'),)
