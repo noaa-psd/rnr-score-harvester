@@ -100,7 +100,7 @@ class LogIncHv(object):
     config: LogIncCfg = field(default_factory=LogIncCfg)
     
     def get_data(self):
-        """ Harvests ocean increment descriptive statistics.
+        """ Harvests increment descriptive statistics.
             Input file is a log text file.
         
             returns harvested_data, a list of HarvestData tuples
