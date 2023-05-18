@@ -33,7 +33,7 @@ PLEV_PRESURE_UNIT = 'mb'
 MIN_LONG = -180
 MAX_LONG = 180
 
-HRVSTR_NAME = 'innov_stats_'
+HARVESTER_NAME = 'innov_stats_'
 
 @dataclass
 class Region:
@@ -374,7 +374,7 @@ class InnovStatsHv:
                     time_valid = metric.cycletime + timedelta(hours=6)
 
                     for idx in range(len(nc_vardata)):
-                        name = HRVSTR_NAME + metric.name + '_' + stat
+                        name = HARVESTER_NAME + metric.name + '_' + stat
                         item = HarvestedData(
                             name,
                             time_valid,
