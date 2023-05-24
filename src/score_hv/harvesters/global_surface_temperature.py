@@ -37,6 +37,7 @@ import os
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
+import numpy as np
 
 from score_hv.config_base import ConfigInterface
 
@@ -132,4 +133,17 @@ class GlobalSurfaceTemperatureHv(object):
         
             returns harvested_data, a list of HarvestData tuples
         """
+        harvested_data = list()
+        
+        for i, variable in enumerate(self.config.get_variables()):
+            """ The first nested loop iterates through each requested variable
+            """
+            for j, statistic in enumerate(self.config.get_stats()):
+                """ The second nested loop iterates through each requested 
+                    statistic
+                """
+                harvested_data.append(HarvestedData(None, statistic, variable,
+                                                    np.nan, None))
+                                                    
+        return harvested_data
         

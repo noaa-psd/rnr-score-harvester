@@ -9,6 +9,7 @@ from collections import namedtuple
 from score_hv.harvesters.innov_netcdf import InnovStatsCfg, InnovStatsHv
 from score_hv.harvesters.obs_log import ObsInfoCfg, ObsInfoHv
 from score_hv.harvesters.inc_logs import LogIncCfg, LogIncHv
+from score_hv.harvesters.global_surface_temperature import GlobalSurfaceTemperatureConfig, GlobalSurfaceTemperatureHv
 
 NAMED_TUPLES_LIST = 'tuples_list'
 PANDAS_DATAFRAME = 'pandas_dataframe'
@@ -35,7 +36,7 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                           'increment descriptive statistics from '
                           'log files',
                           LogIncCfg,
-                          LogIncHv)
+                          LogIncHv),
                       GLOBAL_SURFACE_TEMPERATURE: Harvester(
                           'Global surface temperature from background forecast '
                           'data',
