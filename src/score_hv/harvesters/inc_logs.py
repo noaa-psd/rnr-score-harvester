@@ -9,6 +9,7 @@ import os
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
+
 from score_hv.config_base import ConfigInterface
 
 HARVESTER_NAME = 'inc_logs'
