@@ -9,7 +9,7 @@ import os
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
-
+import ipdb
 from score_hv.config_base import ConfigInterface
 
 HARVESTER_NAME = 'inc_logs'
@@ -19,11 +19,12 @@ VALID_VARIABLES = ['pt_inc', 's_inc', 'u_inc', 'v_inc', 'SSH', 'Salinity',
                    'T_inc', 'delp_inc', 'delz_inc']
 
 HarvestedData = namedtuple('HarvestedData', ['logfile',
+                                             'cycletime',
                                              'statistic',
                                              'variable',
                                              'value', 
                                              'units'])
-N_TUPLE_ENTRIES = 5                                             
+N_TUPLE_ENTRIES = 6                                             
 
 @dataclass
 class LogIncCfg(ConfigInterface):
@@ -45,6 +46,7 @@ class LogIncCfg(ConfigInterface):
         """ function to set configuration variables from given dictionary
         """ 
         self.harvest_filename = self.config_data.get('filename')
+        self.cycletime = self.config_data.get('cycletime')
         self.set_stats()
         self.set_variables()
     
@@ -130,6 +132,7 @@ class LogIncHv(object):
                             """ 
                             harvest_tuple = HarvestedData(
                                 self.config.harvest_filename,
+                                self.config.cycletime,
                                 statistic,
                                 variable,
                                 float(line.split(',')[-2]), # value
@@ -140,6 +143,7 @@ class LogIncHv(object):
                             """
                             harvest_tuple = HarvestedData(
                                 self.config.harvest_filename,
+                                self.config.cycletime,
                                 statistic,
                                 variable,
                                 float(line.split(',')[-1]), # value

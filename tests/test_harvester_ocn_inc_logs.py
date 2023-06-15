@@ -7,6 +7,7 @@ import pathlib
 import os
 
 import numpy as np
+from datetime import datetime
 
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
@@ -23,6 +24,7 @@ FILE_PATH_OCN_INC_LOGS = os.path.join(TEST_DATA_PATH,
                                       LOG_HARVESTER_OCN__VALID)
                  
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.INC_LOGS,
+                     'cycletime': datetime(2019,3,21,0), 
                      'filename' : FILE_PATH_OCN_INC_LOGS,
                      'statistic': ['mean', 'RMS'],
                      'variable': ['pt_inc', 's_inc', 'u_inc', 'v_inc', 'SSH',
@@ -48,9 +50,9 @@ def test_pt_inc(varname='pt_inc'):
     data1 = harvest(VALID_CONFIG_DICT)
     for i, harvested_data_tuple in enumerate(data1):
         if np.isin(i, valid_idxs_in_tuple): # pt_inc data
-            assert harvested_data_tuple[1] in VALID_CONFIG_DICT['statistic']
-            stats_harvested.append(harvested_data_tuple[1])
-            assert harvested_data_tuple[2] == VALID_CONFIG_DICT['variable'][variable_rank]
+            assert harvested_data_tuple.statistic in VALID_CONFIG_DICT['statistic']
+            stats_harvested.append(harvested_data_tuple.statistic)
+            assert harvested_data_tuple.variable == VALID_CONFIG_DICT['variable'][variable_rank]
             
             pt_tuple_subset.append(harvested_data_tuple)
     
@@ -59,9 +61,9 @@ def test_pt_inc(varname='pt_inc'):
         assert valid_statistic == 'mean' or valid_statistic == 'RMS'
         
         if valid_statistic == 'mean':
-            assert pt_tuple_subset[i][3] == -0.657E-02
+            assert pt_tuple_subset[i].value == -0.657E-02
         elif valid_statistic == 'RMS': # RMS
-            assert pt_tuple_subset[i][3] == 0.944E-01
+            assert pt_tuple_subset[i].value == 0.944E-01
                         
 def test_s_inc():
     harvest_data('s_inc', 0.108E-02, 0.330E-01)
@@ -100,9 +102,9 @@ def harvest_data(varname, expected_ans_mean, expected_ans_rms):
     for i, harvested_data_tuple in enumerate(data1):
         
         if np.isin(i, valid_idxs_in_tuple):
-            assert harvested_data_tuple[1] in VALID_CONFIG_DICT['statistic']
-            stats_harvested.append(harvested_data_tuple[1])
-            assert harvested_data_tuple[2] == VALID_CONFIG_DICT['variable'][variable_rank]
+            assert harvested_data_tuple.statistic in VALID_CONFIG_DICT['statistic']
+            stats_harvested.append(harvested_data_tuple.statistic)
+            assert harvested_data_tuple.variable == VALID_CONFIG_DICT['variable'][variable_rank]
             
             valid_tuple_subset.append(harvested_data_tuple)
     
@@ -111,9 +113,28 @@ def harvest_data(varname, expected_ans_mean, expected_ans_rms):
         assert valid_statistic == 'mean' or valid_statistic == 'RMS'
         
         if valid_statistic == 'mean':
-            assert valid_tuple_subset[i][3] == expected_ans_mean
+            assert valid_tuple_subset[i].value == expected_ans_mean
         elif valid_statistic == 'RMS': # RMS
-            assert valid_tuple_subset[i][3] == expected_ans_rms
+            assert valid_tuple_subset[i].value == expected_ans_rms
+            
+def test_cycletime():
+    data1 = harvest(VALID_CONFIG_DICT)
+    assert data1[0].cycletime == datetime(2019, 3, 21, 0)
+    
+def test_nocycletime():
+    valid_config_dict = {'harvester_name': hv_registry.INC_LOGS,
+                         'filename' : FILE_PATH_OCN_INC_LOGS,
+                         'statistic': ['mean', 'RMS'],
+                         'variable': ['pt_inc',
+                                      's_inc',
+                                      'u_inc',
+                                      'v_inc',
+                                      'SSH',
+                                      'Salinity',
+                                      'Temperature',
+                                      'Speed of Currents']}
+    data1 = harvest(valid_config_dict)
+    assert data1[0].cycletime == None
 
 def run_tests():
     """ Run the test suite
@@ -127,6 +148,8 @@ def run_tests():
     test_salinity()
     test_temperature()
     test_speed_of_currents()
+    test_cycletime()
+    test_nocycletime()
     
 def main():
     run_tests()
