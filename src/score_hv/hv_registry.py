@@ -10,7 +10,7 @@ from score_hv.harvesters.innov_netcdf import InnovStatsCfg, InnovStatsHv
 from score_hv.harvesters.obs_log import ObsInfoCfg, ObsInfoHv
 from score_hv.harvesters.inc_logs import LogIncCfg, LogIncHv
 from score_hv.harvesters.global_surface_temperature import GlobalSurfaceTemperatureConfig, GlobalSurfaceTemperatureHv
-
+from score_hv.harvesters.global_bucket_precip_ave import GlobalBucketPrecipRateConfig, GlobalBucketPrecipRateHv 
 NAMED_TUPLES_LIST = 'tuples_list'
 PANDAS_DATAFRAME = 'pandas_dataframe'
 
@@ -18,6 +18,7 @@ INNOV_NETCDF = 'innov_stats_netcdf'
 OBS_INFO_LOG = 'obs_info_log'
 INC_LOGS = 'inc_logs'
 GLOBAL_SURFACE_TEMPERATURE = 'global_surface_temperature'
+GLOBAL_BUCKET_PRECIP_AVE  =  'global_bucket_precip_ave'
 
 Harvester = namedtuple('Harvester', ('name', 'config_handler', 'data_parser'),)
 
@@ -41,5 +42,11 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                           'Global surface temperature from background forecast '
                           'data',
                           GlobalSurfaceTemperatureConfig,
-                          GlobalSurfaceTemperatureHv)
+                          GlobalSurfaceTemperatureHv),
+                      GLOBAL_BUCKET_PRECIP_AVE: Harvester(
+                          'averaged bucket surface precipitation rate. Adding from background forecast data'
+                          'data',
+                          GlobalBucketPrecipRateConfig,
+                          GlobalBucketPrecipRateHv)
+
                    }
