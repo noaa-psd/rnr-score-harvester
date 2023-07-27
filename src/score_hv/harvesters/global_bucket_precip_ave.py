@@ -4,8 +4,10 @@ from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
 import numpy as np
-from netCDF4 import Dataset
+import netCDF4 as nc 
 import xarray as xr
+import glob
+
 
 from score_hv.config_base import ConfigInterface
 
@@ -97,9 +99,12 @@ class GlobalBucketPrecipRateHv(object):
         """
         harvested_data = list()
        
+        mean_values = []
         filenames   = self.config.harvest_filenames
         #Open the requested file names
-        infiles     = xr.open_mfdataset(filenames[0],combine='nested', concat_dim='time')
+        for infile in filenames:
+            nc_file = nc.Dataset(infile, 'r')
+        #Open the requested file names
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
@@ -107,12 +112,17 @@ class GlobalBucketPrecipRateHv(object):
                 """ The second nested loop iterates through each requested 
                     statistic
                 """
-                var_name      = variable
-                requested_var = infiles.variables[var_name]
-                units         = requested_var.attrs["units"]
-                var_data      = requested_var.mean()               
+                var_name    = variable
+                for infile in filenames:
+                    nc_file            = nc.Dataset(infile, 'r')
+                    requested_var      = nc_file.variables[var_name][:]
+                    units              = nc_file.variables[var_name].units if hasattr(nc_file.variables[var_name], 'units') else None
+                    mean_values.append(np.mean(requested_var)) 
+                    nc_file.close()
+                value = np.mean(mean_values)
+                print(value)
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   var_data,units))
+                                                   value,units))
                 
                                                     
         return harvested_data

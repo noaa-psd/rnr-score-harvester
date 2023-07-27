@@ -40,6 +40,22 @@ VALID_CONFIG_DICT = {
     'variable': ['prateb_ave']
  }
 
+def test_global_mean():
+    print("in test get mean")
+    data1               = harvest(VALID_CONFIG_DICT)
+    global_mean         = 2.4695819e-05
+    global_mean_float32 = np.float32(global_mean)
+    #numpy will return a 32 bit floating point number from the harvester.
+    #So we need to cast the global mean value hard coded in here to a 
+    #float 32.  Otherwise the assert function fails.
+    assert data1[0].value == global_mean_float32
+    print("leaving test get mean") 
+
+def test_units():
+    print("in test units")
+    data1 = harvest(VALID_CONFIG_DICT)
+    assert data1[0].units == "kg/m**2/s"
+    print("leaving test units")
 
 
 def test_precip_harvester_get_files():
@@ -52,11 +68,7 @@ def test_precip_harvester_get_files():
     assert data1[0].variable=='prateb_ave'
     assert data1[0].filenames==BFG_PATH
 
-    infiles  = xr.open_mfdataset(BFG_PATH,combine='nested', concat_dim='time')
-    var_name = 'prateb_ave'
-    requested_var = infiles.variables[var_name]
-    prateb_mean   = requested_var.mean('time')
-    assert data1[0].value.all()==prateb_mean.all()
+    #assert data1[0].units
     print('leaving test precip harvester get files')
 
 
@@ -64,7 +76,8 @@ def test_precip_harvester_get_files():
 def main():
 
     test_precip_harvester_get_files()
-
+    test_global_mean()
+    test_units()      
 if __name__=='__main__':
     main()
      
