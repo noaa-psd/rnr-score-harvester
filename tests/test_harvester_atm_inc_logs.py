@@ -5,6 +5,7 @@
 
 import pathlib
 import os
+from datetime import datetime
 
 import numpy as np
 
@@ -24,6 +25,7 @@ FILE_PATH_ATM_INC_LOGS = os.path.join(TEST_DATA_PATH,
                  
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.INC_LOGS,
                      'filename' : FILE_PATH_ATM_INC_LOGS,
+                     'cycletime': datetime(2019,3,21,0),
                      'statistic': ['mean', 'RMS'],
                      'variable': ['o3mr_inc', 'sphum_inc', 'T_inc', 'u_inc', 'v_inc',
                                   'delp_inc', 'delz_inc']}
@@ -48,9 +50,9 @@ def test_ozone_mixing_ratio_inc(varname='o3mr_inc'):
     data1 = harvest(VALID_CONFIG_DICT)
     for i, harvested_data_tuple in enumerate(data1):
         if np.isin(i, valid_idxs_in_tuple): # pt_inc data
-            assert harvested_data_tuple[1] in VALID_CONFIG_DICT['statistic']
-            stats_harvested.append(harvested_data_tuple[1])
-            assert harvested_data_tuple[2] == VALID_CONFIG_DICT['variable'][variable_rank]
+            assert harvested_data_tuple.statistic in VALID_CONFIG_DICT['statistic']
+            stats_harvested.append(harvested_data_tuple.statistic)
+            assert harvested_data_tuple.variable == VALID_CONFIG_DICT['variable'][variable_rank]
             
             pt_tuple_subset.append(harvested_data_tuple)
     
@@ -59,9 +61,9 @@ def test_ozone_mixing_ratio_inc(varname='o3mr_inc'):
         assert valid_statistic == 'mean' or valid_statistic == 'RMS'
         
         if valid_statistic == 'mean':
-            assert pt_tuple_subset[i][3] == -0.120E-07
+            assert pt_tuple_subset[i].value == -0.120E-07
         elif valid_statistic == 'RMS': # RMS
-            assert pt_tuple_subset[i][3] == 0.199E-06
+            assert pt_tuple_subset[i].value == 0.199E-06
                         
 def test_specific_humidity_inc():
     harvest_data('sphum_inc', 0.296E-04, 0.473E-03)
@@ -97,9 +99,9 @@ def harvest_data(varname, expected_ans_mean, expected_ans_rms):
     for i, harvested_data_tuple in enumerate(data1):
         
         if np.isin(i, valid_idxs_in_tuple):
-            assert harvested_data_tuple[1] in VALID_CONFIG_DICT['statistic']
-            stats_harvested.append(harvested_data_tuple[1])
-            assert harvested_data_tuple[2] == VALID_CONFIG_DICT['variable'][variable_rank]
+            assert harvested_data_tuple.statistic in VALID_CONFIG_DICT['statistic']
+            stats_harvested.append(harvested_data_tuple.statistic)
+            assert harvested_data_tuple.variable == VALID_CONFIG_DICT['variable'][variable_rank]
             
             valid_tuple_subset.append(harvested_data_tuple)
     
@@ -108,10 +110,28 @@ def harvest_data(varname, expected_ans_mean, expected_ans_rms):
         assert valid_statistic == 'mean' or valid_statistic == 'RMS'
         
         if valid_statistic == 'mean':
-            assert valid_tuple_subset[i][3] == expected_ans_mean
+            assert valid_tuple_subset[i].value == expected_ans_mean
         elif valid_statistic == 'RMS': # RMS
-            assert valid_tuple_subset[i][3] == expected_ans_rms
+            assert valid_tuple_subset[i].value == expected_ans_rms
 
+def test_cycletime():
+    data1 = harvest(VALID_CONFIG_DICT)
+    assert data1[0].cycletime == datetime(2019, 3, 21, 0)
+    
+def test_nocycletime():
+    valid_config_dict = {'harvester_name': hv_registry.INC_LOGS,
+                         'filename' : FILE_PATH_ATM_INC_LOGS,
+                         'statistic': ['mean', 'RMS'],
+                         'variable': ['o3mr_inc',
+                                      'sphum_inc',
+                                      'T_inc',
+                                      'u_inc',
+                                      'v_inc',
+                                      'delp_inc',
+                                      'delz_inc']}
+    data1 = harvest(valid_config_dict)
+    assert data1[0].cycletime == None
+    
 def run_tests():
     """ Run the test suite
     """
@@ -123,6 +143,8 @@ def run_tests():
     test_southerly_wind_component_inc()
     test_delta_pressure_inc()
     test_delta_z_inc()
+    test_cycletime()
+    test_nocycletime()
     
 def main():
     run_tests()
