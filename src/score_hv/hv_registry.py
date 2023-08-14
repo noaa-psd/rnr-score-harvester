@@ -34,5 +34,22 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                           'increment descriptive statistics from '
                           'log files',
                           LogIncCfg,
-                          LogIncHv)
+                          LogIncHv),
+                      GLOBAL_SURFACE_TEMPERATURE: Harvester(
+                          'Global surface temperature from background forecast '
+                          'data',
+                          GlobalSurfaceTemperatureConfig,
+                          GlobalSurfaceTemperatureHv),
+                      GLOBAL_BUCKET_PRECIP_AVE: Harvester(
+                          'averaged bucket surface precipitation rate. Adding from background forecast data'
+                          'data',
+                          GlobalBucketPrecipRateConfig,
+                          GlobalBucketPrecipRateHva),
+                      GLOBAL_BUCKET_LHTFL_AVE: Harvester(
+                          'averaged bucket surface latent heat flux. Adding from background forecast data'
+                          'data',
+                          GlobalBucketPrecipRateConfig,
+                          GlobalBucketPrecipRateHv)
+                     
+
                    }
