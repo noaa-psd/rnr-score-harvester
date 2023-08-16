@@ -43,7 +43,7 @@ class GlobalBucketEvapRateConfig(ConfigInterface):
         self.variables = self.config_data.get('variable')
         for var in self.variables:
             if var not in VALID_VARIABLES:
-                msg = ("'%s' is not a supported global bucket precip average "
+                msg = ("'%s' is not a supported global bucket evaporation average "
                        "variable to harvest from the background forecast data. "
                        "Please reconfigure the input dictionary using only the "
                        "following variables: %r" % (var, VALID_VARIABLES))
@@ -60,7 +60,7 @@ class GlobalBucketEvapRateConfig(ConfigInterface):
         self.stats = self.config_data.get('statistic')
         for stat in self.stats:
             if stat not in VALID_STATISTICS:
-                msg = ("'%s' is not a supported statistic to harvest for global bucket precipitation. "
+                msg = ("'%s' is not a supported statistic to harvest for global bucket evaporation. "
                        "Please reconfigure the input dictionary using only the "
                        "following statistics: %r" % (stat, VALID_STATISTICS))
                 raise KeyError(msg)
@@ -76,7 +76,7 @@ class GlobalBucketEvapRateConfig(ConfigInterface):
 
 @dataclass
 class GlobalBucketEvapRateHv(object):
-    """ Harvester dataclass used to parse precip stored in 
+    """ Harvester dataclass used to parse,lhtfl,evaporation stored in 
         background forecast data
     
         Parameters:
