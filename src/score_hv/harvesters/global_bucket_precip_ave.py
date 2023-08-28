@@ -1,14 +1,10 @@
 import os,sys
-
-from collections import namedtuple
-from dataclasses import dataclass
-from dataclasses import field
 import numpy as np
 import netCDF4 as nc 
-import xarray as xr
-import glob
-
-
+from collections          import namedtuple
+from netCDF4              import Dataset
+from dataclasses          import dataclass
+from dataclasses          import field
 from score_hv.config_base import ConfigInterface
 
 HARVESTER_NAME   = 'global_bucket_precip_ave'
@@ -64,15 +60,12 @@ class GlobalBucketPrecipRateConfig(ConfigInterface):
                        "Please reconfigure the input dictionary using only the "
                        "following statistics: %r" % (stat, VALID_STATISTICS))
                 raise KeyError(msg)
-    
-
 
     def get_variables(self):
         ''' return list of all variable types based on harvest_config'''
         return self.variables
 
 @dataclass
-
 
 @dataclass
 class GlobalBucketPrecipRateHv(object):
@@ -81,7 +74,7 @@ class GlobalBucketPrecipRateHv(object):
     
         Parameters:
         -----------
-        config: TemperatureConfig object containing information used to determine
+        config: precipConfig object containing information used to determine
                 which variable to parse the log file
         Methods:
         --------
@@ -94,7 +87,7 @@ class GlobalBucketPrecipRateHv(object):
                                 default_factory=GlobalBucketPrecipRateConfig)
     
     def get_data(self):
-        """ Harvests prateb_ave from background forecast data
+        """ Harvests requested statistics and variables from background forecast data
             returns harvested_data, a list of HarvestData tuples
         """
         harvested_data = list()
@@ -116,14 +109,15 @@ class GlobalBucketPrecipRateHv(object):
                 for infile in filenames:
                     nc_file            = nc.Dataset(infile, 'r')
                     requested_var      = nc_file.variables[var_name][:]
-                    units              = nc_file.variables[var_name].units if hasattr(nc_file.variables[var_name], 'units') else None
-                    mean_values.append(np.mean(requested_var)) 
+                    if hasattr(nc_file.variables[var_name], 'units'):
+                        units = nc_file.variables[var_name].units
+                    else:
+                        units = None
+                    mean_values.append(np.ma.mean(requested_var)) 
                     nc_file.close()
                 value = np.mean(mean_values)
-                print(value)
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
                                                    value,units))
-                
-                                                    
         return harvested_data
+
 
