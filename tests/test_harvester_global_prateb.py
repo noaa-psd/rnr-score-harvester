@@ -5,15 +5,12 @@ from pathlib import Path
 import pytest
 import yaml
 import glob
-import xarray as xr
 from netCDF4 import Dataset
-
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
 from score_hv.harvesters.innov_netcdf import Region, InnovStatsCfg
 
-#TEST_DATA_FILE_NAME = 'bfg_19940101_mean_prateb_control.nc'
 TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_prateb_control.nc',
                         'bfg_1994010106_fhr06_prateb_control.nc',
                         'bfg_1994010106_fhr09_prateb_control.nc',
@@ -38,13 +35,13 @@ VALID_CONFIG_DICT = {
 def test_global_mean():
     """ The harvester returns a numpy 32 bit floating point number.
         The test must cast the global mean value hard coded here to a 
-        numpy.float32. Otherwise the assert function fails.
+        numpy.float32. Otherwise the assert function fails.  The value
+        of 2.4695819e-05 is the value of the global mean calculated 
+        from the above TEST_DATA_FILE_NAMES.
     """
-    print("in test get mean")
     data1               = harvest(VALID_CONFIG_DICT)
     global_mean         = np.float32(2.4695819e-05)
     assert data1[0].value == global_mean
-    print("leaving test get mean")
     
 def test_global_mean2():
     data1 = harvest(VALID_CONFIG_DICT)
@@ -54,28 +51,19 @@ def test_global_mean2():
         for j, filename in enumerate(harvested_tuple.filenames):
             rootgrp = Dataset(filename)
             global_means.append(np.ma.mean(rootgrp.variables['prateb_ave'][:]))
-        
         assert np.mean(global_means) == harvested_tuple.value
 
 def test_units():
-    print("in test units")
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].units == "kg/m**2/s"
-    print("leaving test units")
 
 def test_precip_harvester_get_files():
-    print('in test precip harvester get files')
-    print(BFG_PATH)
-
     data1 = harvest(VALID_CONFIG_DICT)  
     assert type(data1) is list
     assert len(data1) > 0
     assert data1[0].variable=='prateb_ave'
     assert data1[0].filenames==BFG_PATH
 
-    #assert data1[0].units
-    print('leaving test precip harvester get files')
-    
 def main():
     test_precip_harvester_get_files()
     test_global_mean()
