@@ -1,14 +1,10 @@
 import os,sys
-
-from collections import namedtuple
-from dataclasses import dataclass
-from dataclasses import field
 import numpy as np
 import netCDF4 as nc 
-import xarray as xr
-import glob
-
-
+from collections          import namedtuple
+from netCDF4              import Dataset
+from dataclasses          import dataclass
+from dataclasses          import field
 from score_hv.config_base import ConfigInterface
 
 HARVESTER_NAME   = 'global_bucket_evap_ave'
@@ -64,15 +60,12 @@ class GlobalBucketEvapRateConfig(ConfigInterface):
                        "Please reconfigure the input dictionary using only the "
                        "following statistics: %r" % (stat, VALID_STATISTICS))
                 raise KeyError(msg)
-    
-
 
     def get_variables(self):
         ''' return list of all variable types based on harvest_config'''
         return self.variables
 
 @dataclass
-
 
 @dataclass
 class GlobalBucketEvapRateHv(object):
@@ -94,11 +87,11 @@ class GlobalBucketEvapRateHv(object):
                                 default_factory=GlobalBucketEvapRateConfig)
     
     def get_data(self):
-        """ Harvests lhtfl_ave(Evaporation) from background forecast data
+        """ Harvests requested statistics and variables from  background forecast data
             returns harvested_data, a list of HarvestData tuples
         """
         harvested_data = list()
-       
+        
         mean_values = []
         filenames   = self.config.harvest_filenames
         #Open the requested file names
@@ -120,9 +113,7 @@ class GlobalBucketEvapRateHv(object):
                     mean_values.append(np.mean(requested_var)) 
                     nc_file.close()
                 value = np.mean(mean_values)
-                #print("the value in harvester",value)
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
                                                    value,units))
                 
-                                                    
         return harvested_data
