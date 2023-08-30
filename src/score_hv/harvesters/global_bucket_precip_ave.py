@@ -81,7 +81,7 @@ class GlobalBucketPrecipRateHv(object):
     
         Parameters:
         -----------
-        config: TemperatureConfig object containing information used to determine
+        config: PrecipConfig object containing information used to determine
                 which variable to parse the log file
         Methods:
         --------
