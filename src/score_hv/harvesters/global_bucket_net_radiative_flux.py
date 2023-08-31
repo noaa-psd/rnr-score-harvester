@@ -1,6 +1,8 @@
 import os,sys
 import numpy as np
 import netCDF4 as nc 
+import xarray as xr
+import glob
 from collections          import namedtuple
 from netCDF4              import Dataset
 from dataclasses          import dataclass
@@ -17,7 +19,7 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'value',
                                              'units'])
 @dataclass
-class GlobalBucketPrecipRateConfig(ConfigInterface):
+class GlobalBucketNetRadiativeFluxConfig(ConfigInterface):
 
     config_data: dict = field(default_factory=dict)
 
@@ -36,7 +38,7 @@ class GlobalBucketPrecipRateConfig(ConfigInterface):
         set the variables specified by the config dict
         """
         
-        self.variables = self.config_data.get('variable')
+        self.variables = self.config_data.get('variables')
         for var in self.variables:
             if var not in VALID_VARIABLES:
                 msg = ("'%s' is not a supported global bucket net radiative flux "
@@ -83,39 +85,51 @@ class GlobalBucketNetRadiativeFluxHv(object):
     
                   returns a list of tuples containing specific data
     """
-    config: GlobalBuckeNetRadiativeFluxConfig = field(
-                                default_factory=GlobalBucketPrecipRateConfig)
+    config: GlobalBucketNetRadiativeFluxConfig = field(
+                                default_factory=GlobalBucketNetRadiativeFluxConfig)
     
     def get_data(self):
         """ Harvests requested statistics and variables from background forecast data
             returns harvested_data, a list of HarvestData tuples
         """
         harvested_data = list()
-       
-        mean_values = []
+        """Arrays for each of the three variables needed to calculate
+           the top of the atmosphere net radiative flux"""
+        mean_dswrf  = []
+        mean_ulwrf  = []
+        mean_uswrf  = []
+        datasets    = []
         filenames   = self.config.harvest_filenames
-        #Open the requested file names
-        for infile in filenames:
-            nc_file = nc.Dataset(infile, 'r')
-        #Open the requested file names
+        for file_path in filenames:
+            dataset = xr.open_dataset(file_path)
+            datasets.append(dataset) 
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
+            varname      = self.config.variables[i]
+            thevar       = dataset[varname]
+            if 'units' in thevar.attrs:
+                units    = thevar.attrs['units']
+            else:
+                units    = "None"
+            if i == 0:
+                print("a zero")
+            dswrf_avetoa = dataset['dswrf_avetoa']
+            ulwrf_avetoa = dataset['ulwrf_avetoa']
+            uswrf_avetoa = dataset['uswrf_avetoa']
+            mean_dswrf.append(np.ma.mean(dswrf_avetoa))
+            mean_ulwrf.append(np.ma.mean(ulwrf_avetoa))
+            mean_uswrf.append(np.ma.mean(uswrf_avetoa))
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic
                 """
-                var_name    = variable[i]
-                for infile in filenames:
-                    nc_file            = nc.Dataset(infile, 'r')
-                    requested_var      = nc_file.variables[var_name][:]
-                    if hasattr(nc_file.variables[var_name], 'units'):
-                        units = nc_file.variables[var_name].units
-                    else:
-                        units = None
-                    mean_values.append(np.ma.mean(requested_var)) 
-                    nc_file.close()
-                value = np.mean(mean_values)
+                global_dswrf_mean  = np.ma.mean(mean_dswrf)
+                global_ulwrf_mean  = np.ma.mean(mean_ulwrf)
+                global_uswrf_mean  = np.ma.mean(mean_uswrf)
+                net_radiative_flux = "{:.5f}".format(global_dswrf_mean - global_ulwrf_mean - global_uswrf_mean)
+                print(net_radiative_flux)
+                value = 0
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
                                                    value,units))
         return harvested_data
