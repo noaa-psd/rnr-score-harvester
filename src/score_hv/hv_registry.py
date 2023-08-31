@@ -16,7 +16,7 @@ PANDAS_DATAFRAME  = 'pandas_dataframe'
 INNOV_NETCDF      = 'innov_stats_netcdf'
 OBS_INFO_LOG      = 'obs_info_log'
 INC_LOGS          = 'inc_logs'
-GLOBAL_BUCKET_NET_RADIATIVE_FLUX   =  'global_bucket_net_radiative_flux'
+GLOBAL_BUCKET_NET_RADIATIVE_FLUX = 'global_bucket_net_radiative_flux'
 
 Harvester = namedtuple('Harvester', ('name', 'config_handler', 'data_parser'),)
 
@@ -40,5 +40,5 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                           'averaged bucket surface precipitation rate. Adding from background forecast data'
                           'data',
                           GlobalBucketNetRadiativeFluxConfig,
-                          GlobalBucketNetRadiatievFluxHv)
+                          GlobalBucketNetRadiativeFluxHv)
                    }
