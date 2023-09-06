@@ -1,6 +1,8 @@
 import os,sys
 import numpy as np
 import netCDF4 as nc 
+import datetime
+import statistics
 from collections          import namedtuple
 from netCDF4              import Dataset
 from dataclasses          import dataclass
@@ -15,7 +17,8 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'statistic',
                                              'variable',
                                              'value',
-                                             'units'])
+                                             'units',
+                                             'cycletime'])
 @dataclass
 class GlobalBucketPrecipRateConfig(ConfigInterface):
 
@@ -93,11 +96,9 @@ class GlobalBucketPrecipRateHv(object):
         harvested_data = list()
        
         mean_values = []
+        datetimes   = [] #List for holding the date and time of the file
+
         filenames   = self.config.harvest_filenames
-        #Open the requested file names
-        for infile in filenames:
-            nc_file = nc.Dataset(infile, 'r')
-        #Open the requested file names
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
@@ -107,17 +108,39 @@ class GlobalBucketPrecipRateHv(object):
                 """
                 var_name    = variable
                 for infile in filenames:
-                    nc_file            = nc.Dataset(infile, 'r')
-                    requested_var      = nc_file.variables[var_name][:]
+                    nc_file        = nc.Dataset(infile, 'r')
+                    requested_var  = nc_file.variables[var_name][:]
+                    time_var       = nc_file.variables['time']
+                    time_units     = time_var.units
+                    datetime_str   = time_units.split('since ')[1]
+                    #Get the date and time from the metadata of the time variable stored in time_units.
+                    datetimes.append(datetime.datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S'))
                     if hasattr(nc_file.variables[var_name], 'units'):
-                        units = nc_file.variables[var_name].units
+                        units  = nc_file.variables[var_name].units
                     else:
-                        units = None
+                        units  =  None
                     mean_values.append(np.ma.mean(requested_var)) 
                     nc_file.close()
+                #Now we convert the datetimes to timestamps.  
+                timestamps = [dt.timestamp() for dt in datetimes]
+                #Calculate the median of the time stamps.
+                timestamps.sort()
+                num = len(timestamps)
+                if num % 2 == 1:
+                   # If the number of timestamps is odd, the median is the middle timestamp
+                   median_timestamp = timestamps[num // 2]
+                else:
+                   # If the number of timestamps is even, the median is the average of the two middle timestamps
+                   middle1 = timestamps[(num - 1) // 2]
+                   middle2 = timestamps[num // 2]
+                   median_timestamp = (middle1 + middle2) / 2
+                #now we convert the median time stamp back to a date and time
+                median_datetime = datetime.datetime.fromtimestamp(median_timestamp)
+                cycletime       = median_datetime
                 value = np.mean(mean_values)
+
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units))
+                                                   value,units,cycletime))
         return harvested_data
 
 
