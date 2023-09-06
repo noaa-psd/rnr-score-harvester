@@ -64,11 +64,22 @@ def test_precip_harvester_get_files():
     assert data1[0].variable=='prateb_ave'
     assert data1[0].filenames==BFG_PATH
 
+def test_cycletime():
+    """ The hard coded datetimestr  1994-01-01 06:00:00
+        is the median time of the filenames defined above in the 
+        BFG_PATH.  We have to convert this into a datetime object in order
+        to compare this string to what is returned by global_bucket_precip_ave.py
+    """
+    data1       = harvest(VALID_CONFIG_DICT)
+    datetimestr = datetime.strptime("1994-01-01 06:00:00", "%Y-%m-%d %H:%M:%S")
+    assert data1[0].cycletime == datetimestr 
+
 def main():
     test_precip_harvester_get_files()
     test_global_mean()
     test_global_mean2()
     test_units()
+    test_cycletime()
 
 if __name__=='__main__':
     main()
