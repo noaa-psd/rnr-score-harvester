@@ -2,22 +2,23 @@ import os,sys
 import numpy as np
 import netCDF4 as nc 
 import xarray as xr
-import glob
+import datetime
+import cftime
 from collections          import namedtuple
 from netCDF4              import Dataset
 from dataclasses          import dataclass
 from dataclasses          import field
 from score_hv.config_base import ConfigInterface
-
 HARVESTER_NAME   = 'global_bucket_net_radiative_flux'
 VALID_STATISTICS = ('mean')
-VALID_VARIABLES  = ('dswrf_avetoa','ulwrf_avetoa','uswrf_avetoa')
+VALID_VARIABLES  = ('dswrf_avetoa','ulwrf_avetoa','uswrf_avetoa','net_radiative_flux')
 
 HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'statistic',
                                              'variables',
                                              'value',
-                                             'units'])
+                                             'units',
+                                             'cycletime'])
 @dataclass
 class GlobalBucketNetRadiativeFluxConfig(ConfigInterface):
 
@@ -89,49 +90,69 @@ class GlobalBucketNetRadiativeFluxHv(object):
                                 default_factory=GlobalBucketNetRadiativeFluxConfig)
     
     def get_data(self):
+        print("in get_data ")
         """ Harvests requested statistics and variables from background forecast data
             returns harvested_data, a list of HarvestData tuples
         """
         harvested_data = list()
         """Arrays for each of the three variables needed to calculate
            the top of the atmosphere net radiative flux"""
+        dswrf       = []
+        ulwrf       = []
+        uswrf       = []
         mean_dswrf  = []
         mean_ulwrf  = []
         mean_uswrf  = []
-        datasets    = []
+        datetimes   = [] #List for holding the date and time of the file
         filenames   = self.config.harvest_filenames
-        for file_path in filenames:
-            dataset = xr.open_dataset(file_path)
-            datasets.append(dataset) 
+        dataset     = xr.open_mfdataset(filenames,combine='nested',concat_dim='time',decode_times=True)
+        thetimes    = dataset['time']
+        timestamps  = np.array([cftime.date2num(time, 'hours since 0001-01-01 00:00:00', 'gregorian') for time in thetimes])
+        med_timetamp  = np.median(timestamps)
+        median_cftime = cftime.num2date(median_timestamp, 'hours since 0001-01-01 00:00:00', 'gregorian')
+        cycletime     =  median_cftime
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
-            varname      = self.config.variables[i]
-            thevar       = dataset[varname]
-            if 'units' in thevar.attrs:
-                units    = thevar.attrs['units']
-            else:
-                units    = "None"
+            varname    = self.config.variables[i]
             if i == 0:
-                print("a zero")
-            dswrf_avetoa = dataset['dswrf_avetoa']
-            ulwrf_avetoa = dataset['ulwrf_avetoa']
-            uswrf_avetoa = dataset['uswrf_avetoa']
-            mean_dswrf.append(np.ma.mean(dswrf_avetoa))
-            mean_ulwrf.append(np.ma.mean(ulwrf_avetoa))
-            mean_uswrf.append(np.ma.mean(uswrf_avetoa))
+                thevar = dataset[varname]
+                """The variables for this harvester all have the same units.  
+                So we only need to get the units for the first variable.
+                We calculate the global mean with the np.isfinite. This skips 
+                any masked values"""
+                if 'units' in thevar.attrs:
+                    units = thevar.attrs['units']
+                else:
+                    units = "None"
+                dswrf   = thevar.values 
+            elif i == 1:
+                thevar  = dataset[varname]
+                ulwrf   = thevar.values
+            elif i == 2:    
+                thevar  = dataset[varname]
+                uswrf   = thevar.values
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic
                 """
-                global_dswrf_mean  = np.ma.mean(mean_dswrf)
-                global_ulwrf_mean  = np.ma.mean(mean_ulwrf)
-                global_uswrf_mean  = np.ma.mean(mean_uswrf)
-                net_radiative_flux = "{:.5f}".format(global_dswrf_mean - global_ulwrf_mean - global_uswrf_mean)
-                print(net_radiative_flux)
-                value = 0
+                if i == 0:
+                    mean_dswrf = dswrf[np.isfinite(dswrf)].mean()
+                    value = mean_dswrf 
+                elif i == 1:
+                    mean_ulwrf = ulwrf[np.isfinite(ulwrf)].mean()
+                    value = mean_ulwrf
+                elif i == 2:
+                    mean_uswrf = uswrf[np.isfinite(uswrf)].mean()
+                    value = mean_uswrf
+                elif i == 3:
+                    net_radiative_flux = mean_dswrf - mean_ulwrf - mean_uswrf
+                    value = net_radiative_flux
+
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units))
+                                                   value,units,cycletime))
+
+
         return harvested_data
 
 
