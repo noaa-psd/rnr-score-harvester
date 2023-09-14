@@ -1,0 +1,12 @@
+netCDF4
+numpy
+pandas
+pyyaml
+scipy
+
+[dev]
+flake8
+autopep8
+pylint
+pytest
+tox
