@@ -1,8 +1,9 @@
 import os,sys
 import numpy as np
 import netCDF4 as nc 
+import xarray as xr
 import datetime
-import statistics
+import cftime
 from collections          import namedtuple
 from netCDF4              import Dataset
 from dataclasses          import dataclass
@@ -18,7 +19,8 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'variable',
                                              'value',
                                              'units',
-                                             'cycletime'])
+                                             'cycletime',
+                                             'longname'])
 @dataclass
 class GlobalBucketPrecipRateConfig(ConfigInterface):
 
@@ -94,53 +96,39 @@ class GlobalBucketPrecipRateHv(object):
             returns harvested_data, a list of HarvestData tuples
         """
         harvested_data = list()
-       
+        precip      = []
         mean_values = []
         datetimes   = [] #List for holding the date and time of the file
 
         filenames   = self.config.harvest_filenames
+        dataset     = xr.open_mfdataset(filenames,combine='nested',concat_dim='time',decode_times=True)
+        thetimes    = dataset['time']
+        timestamps  = np.array([cftime.date2num(time, 'hours since 0001-01-01 00:00:00', 'gregorian') for time in thetimes])
+        median_timestamp  = np.median(timestamps)
+        median_cftime = cftime.num2date(median_timestamp, 'hours since 0001-01-01 00:00:00', 'gregorian')
+        cycletime     =  median_cftime
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
+            varname = self.config.variables[i]
+            thevar  = dataset[varname]
+            precip  = thevar.values
+            if 'long_name' in thevar.attrs:
+                    longname = thevar.attrs['long_name']
+            else:
+                    longname = "None"
+            if 'units' in thevar.attrs:
+                    units = thevar.attrs['units']
+            else:
+                    units = "None"
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic
                 """
-                var_name    = variable
-                for infile in filenames:
-                    nc_file        = nc.Dataset(infile, 'r')
-                    requested_var  = nc_file.variables[var_name][:]
-                    time_var       = nc_file.variables['time']
-                    time_units     = time_var.units
-                    datetime_str   = time_units.split('since ')[1]
-                    #Get the date and time from the metadata of the time variable stored in time_units.
-                    datetimes.append(datetime.datetime.strptime(datetime_str, '%Y-%m-%d %H:%M:%S'))
-                    if hasattr(nc_file.variables[var_name], 'units'):
-                        units  = nc_file.variables[var_name].units
-                    else:
-                        units  =  None
-                    mean_values.append(np.ma.mean(requested_var)) 
-                    nc_file.close()
-                #Now we convert the datetimes to timestamps.  
-                timestamps = [dt.timestamp() for dt in datetimes]
-                #Calculate the median of the time stamps.
-                timestamps.sort()
-                num = len(timestamps)
-                if num % 2 == 1:
-                   # If the number of timestamps is odd, the median is the middle timestamp
-                   median_timestamp = timestamps[num // 2]
-                else:
-                   # If the number of timestamps is even, the median is the average of the two middle timestamps
-                   middle1 = timestamps[(num - 1) // 2]
-                   middle2 = timestamps[num // 2]
-                   median_timestamp = (middle1 + middle2) / 2
-                #now we convert the median time stamp back to a date and time
-                median_datetime = datetime.datetime.fromtimestamp(median_timestamp)
-                cycletime       = median_datetime
-                value = np.mean(mean_values)
-
+                mean_precip = precip[np.isfinite(precip)].mean()
+                value       = mean_precip
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units,cycletime))
+                                                   value,units,cycletime,longname))
         return harvested_data
 
 
