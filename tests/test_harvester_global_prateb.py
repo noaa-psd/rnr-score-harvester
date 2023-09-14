@@ -1,10 +1,9 @@
-import numpy as np
 import os,sys
+import numpy as np
 from datetime import datetime
 from pathlib import Path 
 import pytest
 import yaml
-import glob
 from netCDF4 import Dataset
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
@@ -32,20 +31,25 @@ VALID_CONFIG_DICT = {
     'variable': ['prateb_ave']
  }
 
-def test_global_mean():
+def test_variable_names(data1):
+    assert data1[0].variable=='prateb_ave'
+
+def test_global_mean_values(data1):
     """ The harvester returns a numpy 32 bit floating point number.
         The test must cast the global mean value hard coded here to a 
         numpy.float32. Otherwise the assert function fails.  The value
         of 2.4695819e-05 is the value of the global mean calculated 
-        from the above TEST_DATA_FILE_NAMES.
+        from the above TEST_DATA_FILE_NAMES using a separate python code.
     """
     data1               = harvest(VALID_CONFIG_DICT)
     global_mean         = np.float32(2.4695819e-05)
     assert data1[0].value == global_mean
-    
-def test_global_mean2():
-    data1 = harvest(VALID_CONFIG_DICT)
-    
+
+def test_global_mean_values2(data1):
+    """ This subroutine opens each background Netcdf file using the
+        netCDF4 library function Dataset and computes the mean value
+        of the provided variable.  In this case prateb_ave.
+        """
     for i, harvested_tuple in enumerate(data1):
         global_means = list()
         for j, filename in enumerate(harvested_tuple.filenames):
@@ -53,33 +57,37 @@ def test_global_mean2():
             global_means.append(np.ma.mean(rootgrp.variables['prateb_ave'][:]))
         assert np.mean(global_means) == harvested_tuple.value
 
-def test_units():
-    data1 = harvest(VALID_CONFIG_DICT)
+def test_units(data1):
     assert data1[0].units == "kg/m**2/s"
 
-def test_precip_harvester_get_files():
-    data1 = harvest(VALID_CONFIG_DICT)  
-    assert type(data1) is list
-    assert len(data1) > 0
-    assert data1[0].variable=='prateb_ave'
-    assert data1[0].filenames==BFG_PATH
-
-def test_cycletime():
-    """ The hard coded datetimestr  1994-01-01 06:00:00
+def test_cycletime(data1):
+    """ The hard coded datetimestr 1994-01-01 13:30:00
         is the median time of the filenames defined above in the 
         BFG_PATH.  We have to convert this into a datetime object in order
         to compare this string to what is returned by global_bucket_precip_ave.py
     """
     data1       = harvest(VALID_CONFIG_DICT)
-    datetimestr = datetime.strptime("1994-01-01 06:00:00", "%Y-%m-%d %H:%M:%S")
+    datetimestr = datetime.strptime("1994-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
     assert data1[0].cycletime == datetimestr 
 
+def test_longname(data1):
+    var_longname = "bucket surface precipitation rate"
+    assert data1[0].longname == var_longname 
+
+def test_precip_harvester():
+    data1 = harvest(VALID_CONFIG_DICT)  
+    assert type(data1) is list
+    assert len(data1) > 0
+    assert data1[0].filenames==BFG_PATH
+    test_variable_names(data1)
+    test_units(data1)
+    test_global_mean_values(data1)
+    test_global_mean_values2(data1)
+    test_cycletime(data1) 
+    test_longname(data1)
+
 def main():
-    test_precip_harvester_get_files()
-    test_global_mean()
-    test_global_mean2()
-    test_units()
-    test_cycletime()
+    test_precip_harvester()
 
 if __name__=='__main__':
     main()
