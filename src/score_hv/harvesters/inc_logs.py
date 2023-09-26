@@ -121,12 +121,27 @@ class LogIncHv(object):
             for j, variable in enumerate(self.config.get_variables()):
                 """ The first nested loop iterates through each requested variable
                 """
+                if variable == 'u_inc' or variable == 'v_inc':
+                    """ Because both atmosphere and ocean wind speed
+                        increments (u_inc and v_inc) are named the 
+                        same, must append these variable names based on 
+                        if they are relevant for the atmosphere 
+                        ("_atm") or ocean ("_ocn") metrics
+                    """
+                    if self.config.harvest_filename.split('_')[-2] == 'atm':
+                        varname_out = variable + "_atm"
+                    elif self.config.harvest_filename.split('_')[-2] == 'ocn':
+                        varname_out = variable + "_ocn"
+                
+                else:
+                    varname_out = variable
+                        
                 for k, statistic in enumerate(self.config.get_stats()):
                     """ The second nested loop iterates through each requested statistic
                     """
                     if line.split(',')[1][1:] == variable:
                         """ harvest data
-                        """
+                        """        
                         if statistic == VALID_STATISTICS[0]:
                             """ harvest mean
                             """ 
@@ -134,7 +149,7 @@ class LogIncHv(object):
                                 self.config.harvest_filename,
                                 self.config.cycletime,
                                 statistic,
-                                variable,
+                                varname_out,
                                 float(line.split(',')[-2]), # value
                                 'unspecified', # units
                                 )
@@ -145,7 +160,7 @@ class LogIncHv(object):
                                 self.config.harvest_filename,
                                 self.config.cycletime,
                                 statistic,
-                                variable,
+                                varname_out,
                                 float(line.split(',')[-1]), # value
                                 'unspecified', # units
                                 )
