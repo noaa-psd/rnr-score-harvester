@@ -126,7 +126,7 @@ class GlobalBucketPrecipRateHv(object):
             temporal_midpoints = temporal_endpoints - np.gradient(temporal_endpoints)/2.
         
             median_cftime = cftime.num2date(np.median(temporal_midpoints),
-                                        'hours since 1951-01-01 00:00:00')
+                                            'hours since 1951-01-01 00:00:00')
         else:
             median_cftime = cftime.num2date(np.median(temporal_endpoints),
                                             'hours since 1951-01-01 00:00:00')
@@ -157,5 +157,5 @@ class GlobalBucketPrecipRateHv(object):
                                                  np.float32(mean_precip),
                                                  units,
                                                  median_cftime,
-                                                longname))
+                                                 longname))
         return harvested_data
