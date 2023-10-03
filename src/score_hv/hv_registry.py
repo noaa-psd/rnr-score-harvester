@@ -38,7 +38,7 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                           LogIncCfg,
                           LogIncHv),
                       GLOBAL_BUCKET_PRECIP_AVE: Harvester(
-                          'Global mean surface bucket precipitation rate. ' 
+                          'Global mean bucket surface precipitation rate. ' 
                           'Adding from background forecast data',
                           GlobalBucketPrecipRateConfig,
                           GlobalBucketPrecipRateHv)
