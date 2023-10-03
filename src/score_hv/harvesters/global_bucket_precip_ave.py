@@ -1,16 +1,20 @@
-import os,sys
+#!/usr/bin/env python
+
+import os
+import sys
+
 import numpy as np
-import netCDF4 as nc 
+from netCDF4 import MFDataset
 import xarray as xr
 import datetime
 import cftime
-from collections          import namedtuple
-from netCDF4              import Dataset
-from dataclasses          import dataclass
-from dataclasses          import field
+from collections import namedtuple
+from dataclasses import dataclass
+from dataclasses import field
+
 from score_hv.config_base import ConfigInterface
 
-HARVESTER_NAME   = 'global_bucket_precip_ave'
+HARVESTER_NAME = 'global_bucket_precip_ave'
 VALID_STATISTICS = ('mean')
 VALID_VARIABLES  = ('prateb_ave')
 
@@ -19,7 +23,7 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'variable',
                                              'value',
                                              'units',
-                                             'cycletime',
+                                             'mediantime',
                                              'longname'])
 @dataclass
 class GlobalBucketPrecipRateConfig(ConfigInterface):
@@ -71,8 +75,6 @@ class GlobalBucketPrecipRateConfig(ConfigInterface):
         return self.variables
 
 @dataclass
-
-@dataclass
 class GlobalBucketPrecipRateHv(object):
     """ Harvester dataclass used to parse precip stored in 
         background forecast data
@@ -92,43 +94,68 @@ class GlobalBucketPrecipRateHv(object):
                                 default_factory=GlobalBucketPrecipRateConfig)
     
     def get_data(self):
-        """ Harvests requested statistics and variables from background forecast data
-            returns harvested_data, a list of HarvestData tuples
+        """ Harvests requested statistics and variables from background 
+            forecast data returns harvested_data, a list of HarvestData tuples
+        
+            The below routine extracts timestamps from the input data (forecast 
+            files), which are expected to represent the temporal endpoints of 
+            the (e.g., 3 hour) forecast window. To calculate the temporal 
+            midpoint representative of the whole list of indput forecast files,
+            the routine estimates the time step using a finite difference
+            calculation of the timestamps. Shifting the timestamps by minus
+            half of the time step gives the temporal midpoints, which are
+            then used to determine the multi-file temporal midpoint.
         """
         harvested_data = list()
-        precip      = []
-        mean_values = []
-        datetimes   = [] #List for holding the date and time of the file
-
-        filenames   = self.config.harvest_filenames
-        dataset     = xr.open_mfdataset(filenames,combine='nested',concat_dim='time',decode_times=True)
-        thetimes    = dataset['time']
-        timestamps  = np.array([cftime.date2num(time, 'hours since 0001-01-01 00:00:00', 'gregorian') for time in thetimes])
-        median_timestamp  = np.median(timestamps)
-        median_cftime = cftime.num2date(median_timestamp, 'hours since 0001-01-01 00:00:00', 'gregorian')
-        cycletime     =  median_cftime
+        precip = list()
+        mean_values = list()
+        datetimes = list() #List for holding the date and time of the file
+        
+        xr_dataset = xr.open_mfdataset(self.config.harvest_filenames, 
+                                       combine='nested', 
+                                       concat_dim='time',
+                                       decode_times=True)
+        
+        temporal_endpoints = np.array([cftime.date2num(time,
+            'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
+        
+        if len(self.config.harvest_filenames) > 1:
+            """ can estimate the time step only if there're more than 1 
+                timestamps
+            """
+            temporal_midpoints = temporal_endpoints - np.gradient(temporal_endpoints)/2.
+        
+            median_cftime = cftime.num2date(np.median(temporal_midpoints),
+                                        'hours since 1951-01-01 00:00:00')
+        else:
+            median_cftime = cftime.num2date(np.median(temporal_endpoints),
+                                            'hours since 1951-01-01 00:00:00')
+        
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
-            varname = self.config.variables[i]
-            thevar  = dataset[varname]
-            precip  = thevar.values
-            if 'long_name' in thevar.attrs:
-                    longname = thevar.attrs['long_name']
+            precip_data = xr_dataset[variable]
+            if 'long_name' in precip_data.attrs:
+                longname = precip_data.attrs['long_name']
             else:
-                    longname = "None"
-            if 'units' in thevar.attrs:
-                    units = thevar.attrs['units']
+                longname = "None"
+            if 'units' in precip_data.attrs:
+                units = precip_data.attrs['units']
             else:
-                    units = "None"
+                units = "None"
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic
                 """
-                mean_precip = precip[np.isfinite(precip)].mean()
-                value       = mean_precip
-                harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units,cycletime,longname))
+                if statistic == 'mean':
+                    mean_precip = np.ma.mean(np.ma.masked_invalid(precip_data.values))
+                    
+                    harvested_data.append(HarvestedData(
+                                                 self.config.harvest_filenames,
+                                                 statistic, 
+                                                 variable,
+                                                 np.float32(mean_precip),
+                                                 units,
+                                                 median_cftime,
+                                                longname))
         return harvested_data
-
-
