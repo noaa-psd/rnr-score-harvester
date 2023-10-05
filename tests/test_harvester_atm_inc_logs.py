@@ -101,7 +101,20 @@ def harvest_data(varname, expected_ans_mean, expected_ans_rms):
         if np.isin(i, valid_idxs_in_tuple):
             assert harvested_data_tuple.statistic in VALID_CONFIG_DICT['statistic']
             stats_harvested.append(harvested_data_tuple.statistic)
-            assert harvested_data_tuple.variable == VALID_CONFIG_DICT['variable'][variable_rank]
+            
+            if harvested_data_tuple.variable == 'u_inc_atm' or harvested_data_tuple.variable == 'v_inc_atm':
+                """ This is a special case for wind velocity component 
+                    increments, because these metrics share common names 
+                    across atmosphere and ocean components. Because there is 
+                    only one increment harvester, the harvester appends "_atm" 
+                    or "_ocn" to these variable names so that these metrics 
+                    could later be distinguished by atmosphere or ocean in the
+                    downstream database.
+                """
+                assert harvested_data_tuple.variable == VALID_CONFIG_DICT['variable'][variable_rank] + "_atm"
+            
+            else:
+                assert harvested_data_tuple.variable == VALID_CONFIG_DICT['variable'][variable_rank]
             
             valid_tuple_subset.append(harvested_data_tuple)
     
