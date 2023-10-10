@@ -45,7 +45,20 @@ def test_global_mean_values():
         The test must cast the global mean value hard coded here to a 
         numpy.float32. Otherwise the assert function fails.  The value
         of 2.4695819e-05 is the mean value of the global means calculated 
-        from the above TEST_DATA_FILE_NAMES using a separate python code.
+        from eight forecast files:
+        
+        bfg_1994010100_fhr09_prateb_control.nc
+        bfg_1994010106_fhr06_prateb_control.nc
+        bfg_1994010106_fhr09_prateb_control.nc
+        bfg_1994010112_fhr06_prateb_control.nc
+        bfg_1994010112_fhr09_prateb_control.nc
+        bfg_1994010118_fhr06_prateb_control.nc
+        bfg_1994010118_fhr09_prateb_control.nc
+        bfg_1994010200_fhr06_prateb_control.nc
+        
+        When averaged together, these files represent a 24 hour mean. The 
+        average value hard-coded in this test was calculated from 
+        these forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
     global_mean = np.float32(2.4695819e-05)
@@ -76,8 +89,9 @@ def test_cycletime():
         global_bucket_precip_ave.py
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    datetimestr = datetime.strptime("1994-01-01 12:00:00", "%Y-%m-%d %H:%M:%S")
-    assert data1[0].mediantime == datetimestr
+    expected_datetime = datetime.strptime("1994-01-01 12:00:00",
+                                          "%Y-%m-%d %H:%M:%S")
+    assert data1[0].mediantime == expected_datetime
 
 def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)

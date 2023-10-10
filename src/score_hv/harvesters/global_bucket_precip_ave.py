@@ -100,7 +100,7 @@ class GlobalBucketPrecipRateHv(object):
             The below routine extracts timestamps from the input data (forecast 
             files), which are expected to represent the temporal endpoints of 
             the (e.g., 3 hour) forecast window. To calculate the temporal 
-            midpoint representative of the whole list of indput forecast files,
+            midpoint representative of the whole list of input forecast files,
             the routine estimates the time step using a finite difference
             calculation of the timestamps. Shifting the timestamps by minus
             half of the time step gives the temporal midpoints, which are
