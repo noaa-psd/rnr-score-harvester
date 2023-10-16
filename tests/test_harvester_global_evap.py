@@ -31,54 +31,70 @@ BFG_PATH           = [os.path.join(TEST_DATA_PATH, file_name) for file_name in T
 VALID_CONFIG_DICT = {
     'harvester_name': hv_registry.GLOBAL_BUCKET_EVAP_AVE,
     'filenames' : BFG_PATH,
-    'statistic': ['mean'],
+    'statistic': ['var_mean','global_mean'],
     'variable': ['lhtfl_ave']
  }
 
-def test_global_mean():
+
+def test_variable_name(data1):
+    assert data1[0].variable=='lhtfl_ave'
+
+def test_global_mean(data1):
     """ The harvester returns a numpy 32 bit floating point number.
         The test must cast the global mean value hard coded here to a 
         numpy.float32. Otherwise the assert function fails.
     """
-    print("in test get mean")
-    data1               = harvest(VALID_CONFIG_DICT)
-    global_mean         = np.float32(64.83899)
-    assert data1[0].value == global_mean
-    print("leaving test get mean")
-    
-def test_global_mean2():
-    data1 = harvest(VALID_CONFIG_DICT)
-    
     for i, harvested_tuple in enumerate(data1):
-        global_means = list()
-        for j, filename in enumerate(harvested_tuple.filenames):
-            rootgrp = Dataset(filename)
-            global_means.append(np.ma.mean(rootgrp.variables['lhtfl_ave'][:]))
-        
-        assert np.mean(global_means) == harvested_tuple.value
+        if data1[i].statistic == 'global_mean':
+           global_mean         = np.float32(64.83899)
+           assert data1[i].value == global_mean
+    
+def test_var_means(data1):
+       """ This function compares the values of the precip at each date and time from the
+           the harvester global_bucket_evap_ave.py, for the statistic var_mean.
+           The precip_time_means list contains the values for each of the dates
+           and times that are in the bfg files that are being tested.
+           The precip_time_means were calculated in a separate program and are hard
+           coded here for testing of the harvester values.  The harvester returns
+           a numpy 32 bit floating point number. Each of the precip_time_means list values
+           are cast to a np.float32 value so the asser function will work."""
+       precip_time_means = [61.949924,62.337864,65.02045,66.1606,69.00131,67.125824,65.39551,61.72039]
+       for i, harvested_tuple in enumerate(data1):
+           if data1[i].statistic == 'var_mean':
+              assert data1[i].value == np.float32(precip_time_means[i])
 
-def test_units():
-    print("in test units")
-    data1 = harvest(VALID_CONFIG_DICT)
+
+def test_units(data1):
     assert data1[0].units == "w/m**2"
-    print("leaving test units")
 
-def test_evaporation_harvester_get_files():
-    print('in test evaporation,lhtfl, harvester get files')
-    print(BFG_PATH)
+def test_cycletime(data1):
+    """ The hard coded datetimestr 1994-01-01 13:30:00
+        is the median time of the filenames defined above in the
+        BFG_PATH.  We have to convert this into a datetime object in order
+        to compare this string to what is returned by global_bucket_precip_ave.py
+    """
+    data1       = harvest(VALID_CONFIG_DICT)
+    datetimestr = datetime.strptime("1994-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
+    assert data1[0].cycletime == datetimestr
 
+def test_longname(data1):
+    var_longname = "surface latent heat flux"
+    assert data1[0].longname == var_longname
+
+def test_evaporation_harvester():
     data1 = harvest(VALID_CONFIG_DICT)  
     assert type(data1) is list
     assert len(data1) > 0
-    assert data1[0].variable=='lhtfl_ave'
     assert data1[0].filenames==BFG_PATH
-    print("Leaving the test of evaporation harvester")
+    test_variable_name(data1)
+    test_global_mean(data1)
+    test_var_means(data1)
+    test_units(data1)
+    test_cycletime(data1)
+    test_longname(data1)
 
 def main():
-    test_evaporation_harvester_get_files()
-    test_global_mean()
-    test_global_mean2()
-    test_units()
+    test_evaporation_harvester()
 
 if __name__=='__main__':
     main()

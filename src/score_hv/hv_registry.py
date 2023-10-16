@@ -43,6 +43,4 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                           'Adding from background forecast data',
                           GlobalBucketEvapRateConfig,
                           GlobalBucketEvapRateHv)
-                     
-
                    }
