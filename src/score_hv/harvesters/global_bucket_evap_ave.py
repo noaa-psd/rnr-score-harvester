@@ -19,7 +19,7 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'variable',
                                              'value',
                                              'units',
-                                             'cycletime',
+                                             'mediantime',
                                              'longname'])
 @dataclass
 class GlobalBucketEvapRateConfig(ConfigInterface):
@@ -94,23 +94,42 @@ class GlobalBucketEvapRateHv(object):
     def get_data(self):
         """ Harvests requested statistics and variables from  background forecast data
             returns harvested_data, a list of HarvestData tuples
+
+            The routine below extracts timestamps from the input data (forecast
+            files), which are expected to represent the temporal endpoints of
+            the (e.g., 3 hour) forecast window. To calculate the temporal
+            midpoint representative of the whole list of input forecast files,
+            the routine estimates the time step using a finite difference
+            calculation of the timestamps. Shifting the timestamps by minus
+            half of the time step gives the temporal midpoints, which are
+            then used to determine the multi-file temporal midpoint.
         """
         harvested_data = list()
         evaporation   = [] 
         mean_values   = []
         filenames     = self.config.harvest_filenames
-        dataset       = xr.open_mfdataset(filenames,combine='nested',concat_dim='time',decode_times=True)
-        thetimes      = dataset['time']
-        timestamps    = np.array([cftime.date2num(time, 'hours since 0001-01-01 00:00:00', 'gregorian') for time in thetimes])
-        median_timestamp  = np.median(timestamps)
-        median_cftime = cftime.num2date(median_timestamp, 'hours since 0001-01-01 00:00:00', 'gregorian')
-        cycletime     =  median_cftime
-        #Open the requested file names
+        datetimes     = list() #List for holding the date and time of the file
+        xr_dataset    = xr.open_mfdataset(filenames,combine='nested',concat_dim='time',decode_times=True)
+        temporal_endpoints = np.array([cftime.date2num(time,'hours since 1951-01-01 00:00:00') 
+        for time in xr_dataset['time']])
+
+        if len(self.config.harvest_filenames) > 1:
+            """ can estimate the time step only if there're more than 1
+                timestamps
+            """
+            temporal_midpoints = temporal_endpoints - np.gradient(temporal_endpoints)/2.
+
+            median_cftime = cftime.num2date(np.median(temporal_midpoints),
+                                            'hours since 1951-01-01 00:00:00')
+        else:
+            median_cftime = cftime.num2date(np.median(temporal_endpoints),
+                                            'hours since 1951-01-01 00:00:00')
+
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
             varname      = self.config.variables[i]
-            thevar       = dataset[varname]
+            thevar       = xr_dataset[varname]
             dims         = thevar.shape
             ntimes       = dims[0]
             evaporation  = thevar.values
@@ -131,15 +150,15 @@ class GlobalBucketEvapRateHv(object):
                    """This part of the code calculates the mean of the 
                       variable for each of the date and times in the data set.
                       The xarray function mean handles missing or masked values."""
-                   thetimes = dataset['time'].values
+                   thetimes = xr_dataset['time'].values
                    mean_values_by_time = []
                    for itime in thetimes:
-                       itime_data = dataset.sel(time=itime)
+                       itime_data = xr_dataset.sel(time=itime)
                        mean_for_time_period = np.float32(itime_data[varname].mean().values.item())
                        mean_values_by_time.append(mean_for_time_period)
                        value = mean_for_time_period
                        harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units,cycletime,longname))
+                                                   value,units,median_cftime,longname))
                 elif statistic == 'global_mean': 
                        """Now calculate the mean for the entire dataset. 
                           The list, mean_variable_by_time,holds the mean values of the variable 
@@ -147,7 +166,7 @@ class GlobalBucketEvapRateHv(object):
                        evap_mean_value = np.mean(mean_values_by_time)
                        value           = evap_mean_value
                        harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units,cycletime,longname))
+                                                   value,units,median_cftime,longname))
                 else:
                        print("Statistic is unknown")
         return harvested_data
