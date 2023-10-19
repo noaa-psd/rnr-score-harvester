@@ -67,15 +67,15 @@ def test_var_means(data1):
 def test_units(data1):
     assert data1[0].units == "w/m**2"
 
-def test_median_cftime(data1):
+def test_cycletime(data1):
     """ The hard coded datetimestr 1994-01-01 13:30:00
-        is the median midpoint time of the filenames defined above in the
+        is the median time of the filenames defined above in the
         BFG_PATH.  We have to convert this into a datetime object in order
         to compare this string to what is returned by global_bucket_precip_ave.py
     """
     data1       = harvest(VALID_CONFIG_DICT)
-    datetimestr = datetime.strptime("1994-01-01 12:00:00", "%Y-%m-%d %H:%M:%S")
-    assert data1[0].mediantime == datetimestr
+    datetimestr = datetime.strptime("1994-01-01 13:30:00", "%Y-%m-%d %H:%M:%S")
+    assert data1[0].cycletime == datetimestr
 
 def test_longname(data1):
     var_longname = "surface latent heat flux"
@@ -90,7 +90,7 @@ def test_evaporation_harvester():
     test_global_mean(data1)
     test_var_means(data1)
     test_units(data1)
-    test_median_cftime(data1)
+    test_cycletime(data1)
     test_longname(data1)
 
 def main():
