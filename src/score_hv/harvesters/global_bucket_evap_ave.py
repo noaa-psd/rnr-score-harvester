@@ -124,11 +124,11 @@ class GlobalBucketEvapRateHv(object):
         else:
             median_cftime = cftime.num2date(np.median(temporal_endpoints),
                                             'hours since 1951-01-01 00:00:00')
-
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
             varname      = self.config.variables[i]
+            print(varname)
             thevar       = xr_dataset[varname]
             dims         = thevar.shape
             ntimes       = dims[0]
