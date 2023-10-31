@@ -1,25 +1,27 @@
 import os,sys
-
-from collections import namedtuple
-from dataclasses import dataclass
-from dataclasses import field
 import numpy as np
 import netCDF4 as nc 
 import xarray as xr
-import glob
+import datetime
+import cftime
+from collections import namedtuple
+from dataclasses import dataclass
+from dataclasses import field
 
 
 from score_hv.config_base import ConfigInterface
 
 HARVESTER_NAME   = 'global_bucket_ulwrf_ave'
-VALID_STATISTICS = ('mean')
+VALID_STATISTICS = ('var_mean','global_mean')
 VALID_VARIABLES  = ('ulwrf_avetoa')
 
 HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'statistic',
                                              'variable',
                                              'value',
-                                             'units'])
+                                             'units',
+                                             'mediantime',
+                                             'longname'])
 @dataclass
 class GlobalBucketULWRFConfig(ConfigInterface):
 
@@ -94,36 +96,82 @@ class GlobalBucketULWRFHv(object):
                                 default_factory=GlobalBucketULWRFConfig)
     
     def get_data(self):
-        """ Harvests ulwrf_avetoa from background forecast data
-            returns harvested_data, a list of HarvestData tuples
+        """ Harvests requested statistics and variables from background 
+            forecast data returns harvested_data, a list of HarvestData tuples
+        
+            The below routine extracts timestamps from the input data (forecast 
+            files), which are expected to represent the temporal endpoints of 
+            the (e.g., 3 hour) forecast window. To calculate the temporal 
+            midpoint representative of the whole list of input forecast files,
+            the routine estimates the time step using a finite difference
+            calculation of the timestamps. Shifting the timestamps by minus
+            half of the time step gives the temporal midpoints, which are
+            then used to determine the multi-file temporal midpoint.
         """
         harvested_data = list()
        
         mean_values = []
         filenames   = self.config.harvest_filenames
-        #Open the requested file names
-        for infile in filenames:
-            nc_file = nc.Dataset(infile, 'r')
-        #Open the requested file names
+        datetimes   = list() #List for holding the date and time of the file
+        
+        xr_dataset = xr.open_mfdataset(self.config.harvest_filenames, 
+                                       combine='nested', 
+                                       concat_dim='time',
+                                       decode_times=True)
+        temporal_endpoints = np.array([cftime.date2num(time,
+            'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
+
+        if len(self.config.harvest_filenames) > 1:
+            """ can estimate the time step only if there're more than 1
+                timestamps
+            """
+            temporal_midpoints = temporal_endpoints - np.gradient(temporal_endpoints)/2.
+            median_cftime = cftime.num2date(np.median(temporal_midpoints),
+                                            'hours since 1951-01-01 00:00:00')
+        else:
+            median_cftime = cftime.num2date(np.median(temporal_endpoints),
+                                            'hours since 1951-01-01 00:00:00')
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
+            varname      = self.config.variables[i]
+            thevar       = xr_dataset[varname]
+            dims         = thevar.shape
+            ntimes       = dims[0]
+            ulwrf        = thevar.values 
+            if 'long_name' in thevar.attrs:
+                    longname = thevar.attrs['long_name']
+            else:
+                    longname = "None"
+            if 'units' in thevar.attrs:
+                    units = thevar.attrs['units']
+            else:
+                    units = "None"
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic
                 """
-                var_name    = variable
-                for infile in filenames:
-                    nc_file            = nc.Dataset(infile, 'r')
-                    requested_var      = nc_file.variables[var_name][:]
-                    units              = nc_file.variables[var_name].units if hasattr(nc_file.variables[var_name], 'units') else None
-                    mean_values.append(np.mean(requested_var)) 
-                    nc_file.close()
-                value = np.mean(mean_values)
-                print("in ",value)
-                harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units))
+                statistic = self.config.stats[j]
+                if statistic == 'var_mean':
+                   """This part of the code calculates the mean of the
+                      variable for each of the date and times in the data set.
+                      The xarray function mean handles missing or masked values."""
+                   thetimes = xr_dataset['time'].values
+                   mean_values_by_time = []
+                   for itime in thetimes:
+                       itime_data = xr_dataset.sel(time=itime)
+                       mean_for_time_period = np.float32(itime_data[varname].mean().values.item())
+                       mean_values_by_time.append(mean_for_time_period)
+                       value = mean_for_time_period
+                       harvested_data.append(HarvestedData(filenames, statistic, variable,
+                                                   value,units,median_cftime,longname))
+                elif statistic == 'global_mean': 
+                        """Now calculate the mean for the entire dataset. 
+                           The list, mean_variable_by_time,holds the mean values of the variable 
+                           for each date and time."""
+                        value = np.mean(mean_values_by_time)
+                        harvested_data.append(HarvestedData(filenames, statistic, variable,
+                                                           value,units,median_cftime,longname))
                 
-                                                    
         return harvested_data
 
