@@ -18,7 +18,8 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'variables',
                                              'value',
                                              'units',
-                                             'cycletime'])
+                                             'median_time',
+                                             'longname'])
 @dataclass
 class GlobalBucketNetRadiativeFluxConfig(ConfigInterface):
 
@@ -90,7 +91,6 @@ class GlobalBucketNetRadiativeFluxHv(object):
                                 default_factory=GlobalBucketNetRadiativeFluxConfig)
     
     def get_data(self):
-        print("in get_data ")
         """ Harvests requested statistics and variables from background forecast data
             returns harvested_data, a list of HarvestData tuples
         """
@@ -105,32 +105,43 @@ class GlobalBucketNetRadiativeFluxHv(object):
         mean_uswrf  = []
         datetimes   = [] #List for holding the date and time of the file
         filenames   = self.config.harvest_filenames
-        dataset     = xr.open_mfdataset(filenames,combine='nested',concat_dim='time',decode_times=True)
-        thetimes    = dataset['time']
-        timestamps  = np.array([cftime.date2num(time, 'hours since 0001-01-01 00:00:00', 'gregorian') for time in thetimes])
-        med_timetamp  = np.median(timestamps)
-        median_cftime = cftime.num2date(median_timestamp, 'hours since 0001-01-01 00:00:00', 'gregorian')
-        cycletime     =  median_cftime
+        xr_dataset  = xr.open_mfdataset(filenames,combine='nested',concat_dim='time',decode_times=True)
+        temporal_endpoints = np.array([cftime.date2num(time,
+            'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
+
+        if len(self.config.harvest_filenames) > 1:
+            """ can estimate the time step only if there're more than 1
+                timestamps
+            """
+            temporal_midpoints = temporal_endpoints - np.gradient(temporal_endpoints)/2.
+            median_time = cftime.num2date(np.median(temporal_midpoints),
+                                            'hours since 1951-01-01 00:00:00')
+        else:
+            median_time = cftime.num2date(np.median(temporal_endpoints),
+                                            'hours since 1951-01-01 00:00:00')
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
             varname    = self.config.variables[i]
             if i == 0:
-                thevar = dataset[varname]
+                thevar = xr_dataset[varname]
                 """The variables for this harvester all have the same units.  
                 So we only need to get the units for the first variable.
                 We calculate the global mean with the np.isfinite. This skips 
                 any masked values"""
+                """Since the global mean top of the atmosphere net radiative
+                   flux is a derived variable we hard code the long name"""
+                longname = "TOA net radiative flux"
                 if 'units' in thevar.attrs:
                     units = thevar.attrs['units']
                 else:
                     units = "None"
                 dswrf   = thevar.values 
             elif i == 1:
-                thevar  = dataset[varname]
+                thevar  = xr_dataset[varname]
                 ulwrf   = thevar.values
             elif i == 2:    
-                thevar  = dataset[varname]
+                thevar  = xr_dataset[varname]
                 uswrf   = thevar.values
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
@@ -150,7 +161,7 @@ class GlobalBucketNetRadiativeFluxHv(object):
                     value = net_radiative_flux
 
                 harvested_data.append(HarvestedData(filenames, statistic, variable,
-                                                   value,units,cycletime))
+                                                   value,units,median_time,longname))
 
 
         return harvested_data
