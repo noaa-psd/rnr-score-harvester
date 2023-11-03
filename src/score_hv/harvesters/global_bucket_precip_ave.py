@@ -6,7 +6,7 @@ import sys
 import numpy as np
 from netCDF4 import MFDataset
 import xarray as xr
-import datetime
+from datetime import datetime as dt
 import cftime
 from collections import namedtuple
 from dataclasses import dataclass
@@ -149,13 +149,12 @@ class GlobalBucketPrecipRateHv(object):
                 """
                 if statistic == 'mean':
                     mean_precip = np.ma.mean(np.ma.masked_invalid(precip_data.values))
-                    
                     harvested_data.append(HarvestedData(
-                                                 self.config.harvest_filenames,
-                                                 statistic, 
-                                                 variable,
-                                                 np.float32(mean_precip),
-                                                 units,
-                                                 median_cftime,
-                                                 longname))
+                                             self.config.harvest_filenames,
+                                             statistic, 
+                                             variable,
+                                             np.float32(mean_precip),
+                                             units,
+                                             dt.fromisoformat(median_cftime.isoformat()),
+                                             longname))
         return harvested_data
