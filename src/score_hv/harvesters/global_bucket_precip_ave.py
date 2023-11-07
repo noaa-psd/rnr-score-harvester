@@ -14,9 +14,11 @@ from dataclasses import field
 
 from score_hv.config_base import ConfigInterface
 
+GRID_CELL_AREA_DATA = '/contrib/Adam.Schneider/replay/src/score-hv/tests/data/bfg_2019032100_fhr03_control.nc'
+
 HARVESTER_NAME = 'global_bucket_precip_ave'
-VALID_STATISTICS = ('mean')
-VALID_VARIABLES  = ('prateb_ave')
+VALID_STATISTICS = ('mean', 'std')
+VALID_VARIABLES  = ('prateb_ave', 'soilm', 'tmp2m')
 
 HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'statistic',
@@ -115,6 +117,10 @@ class GlobalBucketPrecipRateHv(object):
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
+    
+        grid_cell_area_data = xr.open_dataset(GRID_CELL_AREA_DATA)
+        grid_cell_weights = (grid_cell_area_data.variables['area'] /
+                             grid_cell_area_data.variables['area'].sum())
         
         temporal_endpoints = np.array([cftime.date2num(time,
             'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
@@ -135,6 +141,7 @@ class GlobalBucketPrecipRateHv(object):
             """ The first nested loop iterates through each requested variable
             """
             precip_data = xr_dataset[variable]
+            temporal_means = precip_data.mean(dim='time', skipna=True)
             if 'long_name' in precip_data.attrs:
                 longname = precip_data.attrs['long_name']
             else:
@@ -148,13 +155,19 @@ class GlobalBucketPrecipRateHv(object):
                     statistic
                 """
                 if statistic == 'mean':
-                    mean_precip = np.ma.mean(np.ma.masked_invalid(precip_data.values))
-                    harvested_data.append(HarvestedData(
-                                             self.config.harvest_filenames,
-                                             statistic, 
-                                             variable,
-                                             np.float32(mean_precip),
-                                             units,
-                                             dt.fromisoformat(median_cftime.isoformat()),
-                                             longname))
+                    value = np.ma.sum(np.ma.masked_invalid(
+                                temporal_means * grid_cell_weights))
+                if statistic == 'std':
+                    value = np.ma.std(np.ma.masked_invalid(temporal_means.values))
+                harvested_data.append(HarvestedData(
+                                      self.config.harvest_filenames,
+                                      statistic, 
+                                      variable,
+                                      np.float32(value),
+                                      units,
+                                      dt.fromisoformat(median_cftime.isoformat()),
+                                      longname))
+        
+        grid_cell_area_data.close()
+        xr_dataset.close()
         return harvested_data
