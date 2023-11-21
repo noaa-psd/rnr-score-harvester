@@ -31,9 +31,9 @@ TEST_DATA_PATH = os.path.join(PYTEST_CALLING_DIR, DATA_DIR)
 BFG_PATH = [os.path.join(TEST_DATA_PATH,
                          file_name) for file_name in TEST_DATA_FILE_NAMES]
 
-VALID_CONFIG_DICT = {'harvester_name': hv_registry.GLOBAL_BUCKET_PRECIP_AVE,
+VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
-                     'statistic': ['mean'],
+                     'statistic': ['mean', 'variance', 'minimum', 'maximum'],
                      'variable': ['prateb_ave']}
 
 def test_variable_names():
@@ -103,15 +103,15 @@ def test_precip_harvester():
     assert type(data1) is list
     assert len(data1) > 0
     assert data1[0].filenames==BFG_PATH
+
+def main():
+    test_precip_harvester()
     test_variable_names()
     test_units()
     test_global_mean_values()
     test_global_mean_values2()
     test_cycletime() 
     test_longname()
-
-def main():
-    test_precip_harvester()
 
 if __name__=='__main__':
     main()
