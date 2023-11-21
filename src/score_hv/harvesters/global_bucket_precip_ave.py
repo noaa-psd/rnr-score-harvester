@@ -14,11 +14,11 @@ from dataclasses import field
 
 from score_hv.config_base import ConfigInterface
 
-GRID_CELL_AREA_DATA = '/contrib/Adam.Schneider/replay/src/score-hv/tests/data/bfg_2019032100_fhr03_control.nc'
+GRID_CELL_AREA_DATA = './normalized_area_weights.nc'
 
-HARVESTER_NAME = 'global_bucket_precip_ave'
+HARVESTER_NAME   = 'global_bucket_precip_ave'
 VALID_STATISTICS = ('mean', 'std')
-VALID_VARIABLES  = ('prateb_ave', 'soilm', 'tmp2m')
+VALID_VARIABLES  = ('prateb_ave', 'soilm', 'tmp2m', 'soill4')
 
 HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'statistic',
@@ -108,23 +108,24 @@ class GlobalBucketPrecipRateHv(object):
             half of the time step gives the temporal midpoints, which are
             then used to determine the multi-file temporal midpoint.
         """
-        harvested_data = list()
-        precip = list()
-        mean_values = list()
-        datetimes = list() #List for holding the date and time of the file
+        harvested_data  = list()
+        datetimes       = list() #List for holding the date and time of the file
         
         xr_dataset = xr.open_mfdataset(self.config.harvest_filenames, 
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
-    
-        grid_cell_area_data = xr.open_dataset(GRID_CELL_AREA_DATA)
-        grid_cell_weights = (grid_cell_area_data.variables['area'] /
+
+        # Get the current working directory
+        current_directory = os.getcwd()
+        grid_cell_file    = os.path.join(current_directory,GRID_CELL_AREA_DATA)
+        grid_cell_area_data = xr.open_dataset(grid_cell_file)
+        grid_cell_weights   = (grid_cell_area_data.variables['area'] /
                              grid_cell_area_data.variables['area'].sum())
         
         temporal_endpoints = np.array([cftime.date2num(time,
             'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
-        
+
         if len(self.config.harvest_filenames) > 1:
             """ can estimate the time step only if there're more than 1 
                 timestamps
@@ -140,14 +141,14 @@ class GlobalBucketPrecipRateHv(object):
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable
             """
-            precip_data = xr_dataset[variable]
-            temporal_means = precip_data.mean(dim='time', skipna=True)
-            if 'long_name' in precip_data.attrs:
-                longname = precip_data.attrs['long_name']
+            field_data = xr_dataset[variable]
+            temporal_means = field_data.mean(dim='time', skipna=True)
+            if 'long_name' in field_data.attrs:
+                longname = field_data.attrs['long_name']
             else:
                 longname = "None"
-            if 'units' in precip_data.attrs:
-                units = precip_data.attrs['units']
+            if 'units' in field_data.attrs:
+                units = field_data.attrs['units']
             else:
                 units = "None"
             for j, statistic in enumerate(self.config.get_stats()):
