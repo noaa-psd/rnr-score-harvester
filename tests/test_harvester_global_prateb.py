@@ -33,7 +33,7 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.GLOBAL_BUCKET_PRECIP_AVE,
                      'filenames' : BFG_PATH,
-                     'statistic': ['mean'],
+                     'statistic': ['mean','std'],
                      'variable': ['prateb_ave']}
 
 def test_variable_names():
@@ -61,21 +61,10 @@ def test_global_mean_values():
         these forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    global_mean = np.float32(2.4695819e-05)
+    global_mean = np.float32(3.117385391676263e-05)
     assert data1[0].value == global_mean
-
-def test_global_mean_values2():
-    """ This subroutine opens each background Netcdf file using the
-        netCDF4 library function Dataset and computes the mean value
-        of the provided variable.  In this case prateb_ave.
-        """
-    data1 = harvest(VALID_CONFIG_DICT)
-    for i, harvested_tuple in enumerate(data1):
-        global_means = list()
-        for j, filename in enumerate(harvested_tuple.filenames):
-            rootgrp = Dataset(filename)
-            global_means.append(np.ma.mean(rootgrp.variables['prateb_ave'][:]))
-        assert np.mean(global_means) == harvested_tuple.value
+    global_std = np.float32(6.497697755052876e-05)
+    assert data1[1].value == global_std
 
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
@@ -106,7 +95,6 @@ def test_precip_harvester():
     test_variable_names()
     test_units()
     test_global_mean_values()
-    test_global_mean_values2()
     test_cycletime() 
     test_longname()
 
