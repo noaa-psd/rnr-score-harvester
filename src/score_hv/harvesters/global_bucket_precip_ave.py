@@ -18,7 +18,7 @@ GRID_CELL_AREA_DATA = './normalized_area_weights.nc'
 
 HARVESTER_NAME   = 'global_bucket_precip_ave'
 VALID_STATISTICS = ('mean', 'std')
-VALID_VARIABLES  = ('prateb_ave', 'soilm', 'tmp2m', 'soill4')
+VALID_VARIABLES  = ('prateb_ave', 'soilm', 'tmp2m', 'soill4', 'soilt4')
 
 HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'statistic',
