@@ -24,10 +24,15 @@ TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_prateb_control.nc',
                         'bfg_1994010118_fhr09_prateb_control.nc',
                         'bfg_1994010200_fhr06_prateb_control.nc']
 
-DATA_DIR = 'data'
+DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'data')
+GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
+                                       'gridcell-area' + 
+                                       '_noaa-ufs-gefsv13replay-pds' + 
+                                       '_bfg_control_1536x768_20231116.nc')
+
 CONFIGS_DIR = 'configs'
 PYTEST_CALLING_DIR = Path(__file__).parent.resolve()
-TEST_DATA_PATH = os.path.join(PYTEST_CALLING_DIR, DATA_DIR)
+TEST_DATA_PATH = os.path.join(PYTEST_CALLING_DIR, 'data')
 BFG_PATH = [os.path.join(TEST_DATA_PATH,
                          file_name) for file_name in TEST_DATA_FILE_NAMES]
 
@@ -35,6 +40,19 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean', 'variance', 'minimum', 'maximum'],
                      'variable': ['prateb_ave']}
+
+def test_gridcell_area_conservation(tolerance=0.001):
+
+    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    
+    assert gridcell_area_data['area'].units == 'steradian'
+    
+    sum_gridcell_area = np.sum(gridcell_area_data.variables['area'])
+    
+    assert sum_gridcell_area < (1 + tolerance) * 4 * np.pi
+    assert sum_gridcell_area > (1 - tolerance) * 4 * np.pi
+    
+    gridcell_area_data.close()
 
 def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
@@ -64,18 +82,96 @@ def test_global_mean_values():
     global_mean = np.float32(2.4695819e-05)
     assert data1[0].value == global_mean
 
-def test_global_mean_values2():
-    """ This subroutine opens each background Netcdf file using the
-        netCDF4 library function Dataset and computes the mean value
-        of the provided variable.  In this case prateb_ave.
-        """
+def test_global_mean_values2(tolerance=0.001):
+    """Opens each background Netcdf file using the
+    netCDF4 library function Dataset and computes the expected value
+    of the provided variable.  In this case prateb_ave.
+    """
     data1 = harvest(VALID_CONFIG_DICT)
+    
+    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
+                                        gridcell_area_data.variables['area'][:])
+    
+    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
+    for file_count, data_file in enumerate(BFG_PATH):
+        test_rootgrp = Dataset(data_file)
+    
+        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
+        
+        test_rootgrp.close()
+        
+    temporal_mean = summation / (file_count + 1)
+    global_mean = np.ma.sum(norm_weights * temporal_mean)    
+    
     for i, harvested_tuple in enumerate(data1):
-        global_means = list()
-        for j, filename in enumerate(harvested_tuple.filenames):
-            rootgrp = Dataset(filename)
-            global_means.append(np.ma.mean(rootgrp.variables['prateb_ave'][:]))
-        assert np.mean(global_means) == harvested_tuple.value
+        if harvested_tuple.statistic == 'mean':
+            assert global_mean <= (1 + tolerance) * harvested_tuple.value
+            assert global_mean >= (1 - tolerance) * harvested_tuple.value
+            
+    gridcell_area_data.close()
+                
+def test_gridcell_variance(tolerance=0.001):
+    """Opens each background Netcdf file using the
+    netCDF4 library function Dataset and computes the variance
+    of the provided variable.  In this case prateb_ave.
+    """
+    data1 = harvest(VALID_CONFIG_DICT)
+    
+    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
+                                        gridcell_area_data.variables['area'][:])
+    
+    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
+    for file_count, data_file in enumerate(BFG_PATH):
+        test_rootgrp = Dataset(data_file)
+    
+        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
+        
+        test_rootgrp.close()
+        
+    temporal_mean = summation / (file_count + 1)
+    
+    global_mean = np.ma.sum(norm_weights * temporal_mean)
+    variance = np.ma.sum((temporal_mean - global_mean)**2 * norm_weights)
+    
+    for i, harvested_tuple in enumerate(data1):
+        if harvested_tuple.statistic == 'variance':
+            assert variance <= (1 + tolerance) * harvested_tuple.value
+            assert variance >= (1 - tolerance) * harvested_tuple.value
+            
+    gridcell_area_data.close()
+    
+def test_gridcell_min_max(tolerance=0.001):
+    """Opens each background Netcdf file using the
+    netCDF4 library function Dataset and computes the maximum
+    of the provided variable.  In this case prateb_ave.
+    """
+    data1 = harvest(VALID_CONFIG_DICT)
+    
+    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    
+    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
+    for file_count, data_file in enumerate(BFG_PATH):
+        test_rootgrp = Dataset(data_file)
+    
+        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
+        
+        test_rootgrp.close()
+        
+    temporal_mean = summation / (file_count + 1)
+    minimum = np.ma.min(temporal_mean)
+    maximum = np.ma.max(temporal_mean)
+    
+    for i, harvested_tuple in enumerate(data1):
+        if harvested_tuple.statistic == 'maximum':
+            assert maximum <= (1 + tolerance) * harvested_tuple.value
+            assert maximum >= (1 - tolerance) * harvested_tuple.value
+        elif harvested_tuple.statistic == 'minimum':
+            assert minimum <= (1 + tolerance) * harvested_tuple.value
+            assert minimum >= (1 - tolerance) * harvested_tuple.value
+            
+    gridcell_area_data.close()
 
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
@@ -105,13 +201,17 @@ def test_precip_harvester():
     assert data1[0].filenames==BFG_PATH
 
 def main():
+    test_gridcell_area_conservation()
     test_precip_harvester()
     test_variable_names()
     test_units()
     test_global_mean_values()
     test_global_mean_values2()
+    test_gridcell_variance()
     test_cycletime() 
     test_longname()
 
 if __name__=='__main__':
-    main()
+    #main()
+    test_global_mean_values2()
+    
