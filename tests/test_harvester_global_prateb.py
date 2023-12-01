@@ -205,13 +205,12 @@ def main():
     test_precip_harvester()
     test_variable_names()
     test_units()
-    test_global_mean_values()
+    #test_global_mean_values()
     test_global_mean_values2()
     test_gridcell_variance()
+    test_gridcell_min_max()
     test_cycletime() 
     test_longname()
 
 if __name__=='__main__':
-    #main()
-    test_global_mean_values2()
-    
+    main()    
