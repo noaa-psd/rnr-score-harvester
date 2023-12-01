@@ -132,9 +132,6 @@ class DailyBFGHv(object):
             then used to determine the multi-file temporal midpoint.
         """
         harvested_data = list()
-        #precip = list()
-        #mean_values = list()
-        #datetimes = list() #List for holding the date and time of the file
         
         xr_dataset = xr.open_mfdataset(self.config.harvest_filenames, 
                                        combine='nested', 
