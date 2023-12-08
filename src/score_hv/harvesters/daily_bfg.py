@@ -101,7 +101,7 @@ class DailyBFGConfig(ConfigInterface):
 
 @dataclass
 class DailyBFGHv(object):
-    """ Harvester dataclass used to parse daily means from 
+    """ Harvester dataclass used to parse daily mean statistics from 
         background forecast data
     
         Parameters:
