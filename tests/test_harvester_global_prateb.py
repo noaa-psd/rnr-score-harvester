@@ -59,11 +59,8 @@ def test_variable_names():
     assert data1[0].variable == 'prateb_ave'
 
 def test_global_mean_values(tolerance=0.001):
-    """ The harvester returns a numpy 32 bit floating point number.
-        The test must cast the global mean value hard coded here to a 
-        numpy.float32. Otherwise the assert function fails.  The value
-        of 2.4695819e-05 is the mean value of the global means calculated 
-        from eight forecast files:
+    """The value of 3.117e-05 is the mean value of the global means 
+    calculated from eight forecast files:
         
         bfg_1994010100_fhr09_prateb_control.nc
         bfg_1994010106_fhr06_prateb_control.nc
@@ -74,12 +71,12 @@ def test_global_mean_values(tolerance=0.001):
         bfg_1994010118_fhr09_prateb_control.nc
         bfg_1994010200_fhr06_prateb_control.nc
         
-        When averaged together, these files represent a 24 hour mean. The 
-        average value hard-coded in this test was calculated from 
-        these forecast files using a separate python code.
+    When averaged together, these files represent a 24 hour mean. The 
+    average value hard-coded in this test was calculated from 
+    these forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    global_mean =  3.1173840683271906e-05
+    global_mean = 3.1173840683271906e-05
     assert data1[0].value <= (1 + tolerance) * global_mean
     assert data1[0].value >= (1 - tolerance) * global_mean
 
@@ -163,21 +160,27 @@ def test_gridcell_min_max(tolerance=0.001):
     temporal_mean = summation / (file_count + 1)
     minimum = np.ma.min(temporal_mean)
     maximum = np.ma.max(temporal_mean)
-    """The calculated min and max were calculated from an external
-       python code."""
-    calculated_min = 0.0
-    calculated_max = 0.0043600933
-    assert minimum <= (1 + tolerance) * calculated_min
-    assert minimum >= (1 - tolerance) * calculated_min
-    assert maximum <= (1 + tolerance) * calculated_max
-    assert maximum >= (1 - tolerance) * calculated_max
+    
+    """The following offline min and max were calculated from an external 
+    python code
+    """
+    offline_min = 0.0
+    offline_max = 0.0043600933
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'maximum':
             assert maximum <= (1 + tolerance) * harvested_tuple.value
             assert maximum >= (1 - tolerance) * harvested_tuple.value
+            
+            assert offline_max <= (1 + tolerance) * harvested_tuple.value
+            assert offline_max >= (1 - tolerance) * harvested_tuple.value
+            
+            
         elif harvested_tuple.statistic == 'minimum':
             assert minimum <= (1 + tolerance) * harvested_tuple.value
             assert minimum >= (1 - tolerance) * harvested_tuple.value
+            
+            assert offline_min <= (1 + tolerance) * harvested_tuple.value
+            assert offline_min >= (1 - tolerance) * harvested_tuple.value
             
     gridcell_area_data.close()
 
@@ -213,6 +216,7 @@ def main():
     test_precip_harvester()
     test_variable_names()
     test_units()
+    test_global_mean_values()
     test_global_mean_values2()
     test_gridcell_variance()
     test_gridcell_min_max()
