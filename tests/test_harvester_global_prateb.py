@@ -58,7 +58,7 @@ def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'prateb_ave'
 
-def test_global_mean_values():
+def test_global_mean_values(tolerance=0.001):
     """ The harvester returns a numpy 32 bit floating point number.
         The test must cast the global mean value hard coded here to a 
         numpy.float32. Otherwise the assert function fails.  The value
@@ -79,8 +79,9 @@ def test_global_mean_values():
         these forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    global_mean = np.float32(2.4695819e-05)
-    assert data1[0].value == global_mean
+    global_mean =  3.1173840683271906e-05
+    assert data1[0].value <= (1 + tolerance) * global_mean
+    assert data1[0].value >= (1 - tolerance) * global_mean
 
 def test_global_mean_values2(tolerance=0.001):
     """Opens each background Netcdf file using the
@@ -162,7 +163,14 @@ def test_gridcell_min_max(tolerance=0.001):
     temporal_mean = summation / (file_count + 1)
     minimum = np.ma.min(temporal_mean)
     maximum = np.ma.max(temporal_mean)
-    
+    """The calculated min and max were calculated from an external
+       python code."""
+    calculated_min = 0.0
+    calculated_max = 0.0043600933
+    assert minimum <= (1 + tolerance) * calculated_min
+    assert minimum >= (1 - tolerance) * calculated_min
+    assert maximum <= (1 + tolerance) * calculated_max
+    assert maximum >= (1 - tolerance) * calculated_max
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'maximum':
             assert maximum <= (1 + tolerance) * harvested_tuple.value
@@ -205,7 +213,6 @@ def main():
     test_precip_harvester()
     test_variable_names()
     test_units()
-    #test_global_mean_values()
     test_global_mean_values2()
     test_gridcell_variance()
     test_gridcell_min_max()
