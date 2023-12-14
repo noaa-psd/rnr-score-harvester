@@ -37,7 +37,7 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                           LogIncCfg,
                           LogIncHv),
                       DAILY_BFG: Harvester(
-                          'Daily mean values from background forecast data',
+                          'Daily mean statistics from background forecast data',
                           DailyBFGConfig,
                           DailyBFGHv)
                       }
