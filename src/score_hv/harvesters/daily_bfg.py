@@ -25,12 +25,12 @@ statistics but are in development and are currently not fully supported.
 VALID_VARIABLES  = (#'icetk', # sea ice thickness (m)
                     #'lhtfl_ave', # surface latent heat flux (W m^-2)
                     #'prate_ave', # surface precip rate (mm weq. s^-1)
-                    'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
+                    #'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
                     #'soil4', # liquid soil moisture at layer-4 (?)
                     #'soilm', # total column soil moisture content (mm weq.)
-                    #'soilt4', # soil temperature unknown layer 4 (K)
+                    'soilt4', # soil temperature unknown layer 4 (K)
                     #'tg3', # deep soil temperature (K)
                     #'tmp2m', # 2m (surface air) temperature (K)
                     #'tmpsfc', # surface temperature (K)
@@ -183,7 +183,6 @@ class DailyBFGHv(object):
                 """
                 if statistic == 'mean':
                     value = expected_value
-                
                 elif statistic == 'variance':
                     value = -expected_value**2 + np.ma.sum(
                                                    temporal_means**2 * 
@@ -192,10 +191,10 @@ class DailyBFGHv(object):
                 
                 elif statistic == 'maximum':
                     value = np.ma.max(temporal_means)
-                
+
                 elif statistic == 'minimum':
                     value = np.ma.min(temporal_means)
-                
+
                 harvested_data.append(HarvestedData(
                                     self.config.harvest_filenames,
                                     statistic, 
