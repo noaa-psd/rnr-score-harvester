@@ -83,7 +83,7 @@ def test_global_mean_values(tolerance=0.001):
 def test_global_mean_values2(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the expected value
-    of the provided variable.  In this case prateb_ave.
+    of the provided variable.  In this case soill4.
     """
     data1 = harvest(VALID_CONFIG_DICT)
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
@@ -111,7 +111,7 @@ def test_global_mean_values2(tolerance=0.001):
 def test_gridcell_variance(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the variance
-    of the provided variable.  In this case prateb_ave.
+    of the provided variable.  In this case soill4.
     """
     data1 = harvest(VALID_CONFIG_DICT)
 
@@ -142,7 +142,7 @@ def test_gridcell_variance(tolerance=0.001):
 def test_gridcell_min_max(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the maximum
-    of the provided variable.  In this case prateb_ave.
+    of the provided variable.  In this case soill4.
     """
     data1 = harvest(VALID_CONFIG_DICT)
 
@@ -192,7 +192,7 @@ def test_cycletime():
         is the median midpoint time of the filenames defined above in the 
         BFG_PATH.  We have to convert this into a datetime object in order
         to compare this string to what is returned by 
-        global_bucket_precip_ave.py
+        daily_bfg.py 
     """
     data1 = harvest(VALID_CONFIG_DICT)
     expected_datetime = datetime.strptime("1994-01-01 12:00:00",
