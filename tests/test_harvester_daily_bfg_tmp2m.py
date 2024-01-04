@@ -45,8 +45,8 @@ def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'tmp2m'
 
-def test_global_mean_values():
-    """The value of 2.4695819e-05 is the mean value of the global means
+def test_global_mean_values(tolerance=0.001):
+    """The value of 287.0713362523281 is the mean value of the global means
     calculated from eight forecast files:
         
         tmp2m_bfg_2023032100_fhr09_control.nc
@@ -63,8 +63,9 @@ def test_global_mean_values():
     using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    global_mean = np.float32(2.4695819e-05)
-    assert data1[0].value == global_mean
+    global_mean = 287.0713362523281
+    assert data1[0].value <= (1 + tolerance) * global_mean
+    assert data1[0].value >= (1 - tolerance) * global_mean 
 
 def test_global_mean_values2(tolerance=0.001):
     """Opens each background Netcdf file using the netCDF4 library function 
