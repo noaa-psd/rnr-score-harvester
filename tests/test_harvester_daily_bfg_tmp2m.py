@@ -45,7 +45,7 @@ def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'tmp2m'
 
-def test_global_mean_values(tolerance=0.001):
+def test_global_mean_values_offline(tolerance=0.001):
     """The value of 287.0713362523281 is the mean value of the global means
     calculated from eight forecast files:
         
@@ -67,7 +67,7 @@ def test_global_mean_values(tolerance=0.001):
     assert data1[0].value <= (1 + tolerance) * global_mean
     assert data1[0].value >= (1 - tolerance) * global_mean 
 
-def test_global_mean_values2(tolerance=0.001):
+def test_global_mean_values_netCDF4(tolerance=0.001):
     """Opens each background Netcdf file using the netCDF4 library function 
     Dataset and computes the expected value of the provided variable.  In this 
     case tmp2m.
@@ -178,19 +178,18 @@ def test_longname():
     var_longname = "2m temperature"
     assert data1[0].longname == var_longname
 
-def test_precip_harvester():
+def test_daily_bfg_harvester():
     data1 = harvest(VALID_CONFIG_DICT)  
     assert type(data1) is list
     assert len(data1) > 0
     assert data1[0].filenames==BFG_PATH
 
 def main():
-    test_gridcell_area_conservation()
-    test_precip_harvester()
+    test_daily_bfg_harvester()
     test_variable_names()
     test_units()
-    #test_global_mean_values()
-    test_global_mean_values2()
+    test_global_mean_values_offline()
+    test_global_mean_values_netCDF4()
     test_gridcell_variance()
     test_gridcell_min_max()
     test_cycletime() 
