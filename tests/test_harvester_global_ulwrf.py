@@ -55,7 +55,7 @@ def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'ulwrf_avetoa'
 
-def test_global_mean_values(tolerance=0.001):
+def test_global_mean_values_offline(tolerance=0.001):
     """ 
         The value of 242.84720151427342 the mean value of the 
         global meas calculated from these eight forecast files:
@@ -78,7 +78,7 @@ def test_global_mean_values(tolerance=0.001):
     assert data1[0].value <= (1 + tolerance) * global_mean
     assert data1[0].value >= (1 - tolerance) * global_mean
  
-def test_global_mean_values2(tolerance=0.001):
+def test_global_mean_values_netCDF4(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the expected value
     of the provided variable.  In this case ulwrf_avetoa.
@@ -214,8 +214,8 @@ def main():
     test_ulwrf_harvester_get_files()
     test_variable_names()
     test_units()
-    test_global_mean_values()
-    test_global_mean_values2() 
+    test_global_mean_values_offline()
+    test_global_mean_values_netCDF4() 
     test_gridcell_variance()
     test_gridcell_min_max()
     test_cycletime()
