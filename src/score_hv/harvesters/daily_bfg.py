@@ -34,6 +34,7 @@ VALID_VARIABLES  = (#'icetk', # sea ice thickness (m)
                     #'tg3', # deep soil temperature (K)
                     #'tmp2m', # 2m (surface air) temperature (K)
                     #'tmpsfc', # surface temperature (K)
+                    'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
                     #'weasd', # surface snow water equivalent (mm weq.)
                     )
 
