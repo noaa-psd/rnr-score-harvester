@@ -23,9 +23,9 @@ Commented out variables can be uncommented to generate gridcell weighted
 statistics but are in development and are currently not fully supported.
 """
 VALID_VARIABLES  = (#'icetk', # sea ice thickness (m)
-                    #'lhtfl_ave', # surface latent heat flux (W m^-2)
+                    'lhtfl_ave', # surface latent heat flux (W m^-2)
                     #'prate_ave', # surface precip rate (mm weq. s^-1)
-                    'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
+                    #'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
                     #'soil4', # liquid soil moisture at layer-4 (?)
@@ -184,7 +184,7 @@ class DailyBFGHv(object):
                 """
                 if statistic == 'mean':
                     value = expected_value
-                
+                   
                 elif statistic == 'variance':
                     value = -expected_value**2 + np.ma.sum(
                                                    temporal_means**2 * 
@@ -193,10 +193,10 @@ class DailyBFGHv(object):
                 
                 elif statistic == 'maximum':
                     value = np.ma.max(temporal_means)
-                
+                    print(value)  
                 elif statistic == 'minimum':
                     value = np.ma.min(temporal_means)
-                
+                    print(value)
                 harvested_data.append(HarvestedData(
                                     self.config.harvest_filenames,
                                     statistic, 
