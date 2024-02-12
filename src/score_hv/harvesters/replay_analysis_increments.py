@@ -9,7 +9,18 @@ VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
 Commented out variables can be uncommented to generate gridcell weighted
 statistics but are in development and are currently not fully supported.
 """
-VALID_VARIABLES  = ()
+VALID_VARIABLES  = (# Analysis increments for FV3 prognostic variables:
+                    'delp_inc', # vertical difference in hydrostatic pressure,
+                                # proportional to mass
+                    'u_inc', # mean westerly (horizontal x-direction) wind
+                    'v_inc', # mean southerly (horizontal y-direction) wind
+                    'delz_inc', # geometric layer height
+                    
+                    # other analysis increments:
+                    'o3mr_inc', # ozone mixing ratio
+                    'sphum_inc', # specific humidity
+                    'T_inc', # temperature
+                    )
 
 HarvestedData = namedtuple('HarvestedData', [])
 
