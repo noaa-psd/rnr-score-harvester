@@ -25,8 +25,8 @@ VALID_VARIABLES  = (
                     #'icetk', # sea ice thickness (m)
                     #'lhtfl_ave', # surface latent heat flux (W m^-2)
                     'netrf_avetoa',#top of atmoshere net radiative flux (SW and LW) (W/m**2)
-                    #'prate_ave', # surface precip rate (mm weq. s^-1)
-                    #'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
+                    'prate_ave', # surface precip rate (mm weq. s^-1)
+                    'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
                     #'soil4', # liquid soil moisture at layer-4 (?)
@@ -45,13 +45,6 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'units',
                                              'mediantime',
                                              'longname'])
-
-"""
-  Create an instance of the var_stats class so
-  so we can use it to calculate statistics. This
-  class is defined in src/score_hv.
-  """
-var_stats_instance = var_stats()
 
 
 def get_gridcell_area_data_path():
@@ -169,8 +162,11 @@ class DailyBFGHv(object):
 
             if variable == 'netrf_avetoa': 
                  """The variable name netrf_avetoa referes to the 
-                    top of the atmosphere net radiative flux.
+                    top of the atmosphere net radiative flux.  In this
+                    case we use the var_stats class since we will be
+                    calculating the statistics of the required variables.
                     """
+                 var_stats_instance = var_stats()
                  required_vars  = ['dswrf_avetoa','ulwrf_avetoa','uswrf_avetoa'] 
                  num_vars       = len(required_vars)
                  for index in range(0,num_vars): 
@@ -201,6 +197,7 @@ class DailyBFGHv(object):
                      units = variable_data.attrs['units']
                  else:
                       units = "None"
+                 gridcell_area_weights = gridcell_area_data.variables['area']        
                  expected_value, sumweights = np.ma.average(temporal_means,
                                                   weights=gridcell_area_weights,
                                                   returned=True)
@@ -240,7 +237,6 @@ class DailyBFGHv(object):
                       value = themaxs 
                    else:                                            
                       value= np.ma.max(temporal_means)
-                      num_vars  = len(required_vars)  
 
                 elif statistic == 'minimum':
                     if variable == 'netrf_avetoa':
