@@ -2,6 +2,13 @@
 increments (from the fv3_increment6.nc files)
 """
 
+from collections import namedtuple
+from dataclasses import dataclass, field
+
+from netCDF4 import Dataset
+
+from score_hv.config_base import ConfigInterface
+
 HARVESTER_NAME = 'replay_analysis_increments'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
 
@@ -22,7 +29,39 @@ VALID_VARIABLES  = (# Analysis increments for FV3 prognostic variables:
                     'T_inc', # temperature
                     )
 
-HarvestedData = namedtuple('HarvestedData', [])
+HarvestedData = namedtuple('HarvestedData', ['filename',
+                                             'cycletime',
+                                             'statistic',
+                                             'variable',
+                                             'values',
+                                             'units',
+                                             'longname'])
+
+def get_longname(variable):
+    """Define descriptions for VALID_VARIABLES
+    """
+    variables = {'delp_inc': 'Analysis increment of the vertical difference in '
+                           'hydrostatic pressure, proportional to mass',
+                 'u_inc': 'Analysis increment of the D-grid face-mean '
+                          'horizontal x-direction wind',
+                 'v_inc': 'Analysis increment of the D-grid face-mean ' 
+                          'horizontal y-direction wind',
+                 'delz_inc': 'Analysis increment of the geometric layer height',
+                 'o3mr_inc': 'Analysis increment of the ozone mixing ratio',
+                 'sphum_inc': 'Analysis increment of the specific humidity',
+                 'T_inc': 'Analysis increment of the temperature'}
+                 
+    for key, value in variables.items():
+        if variable == key:
+            description = value
+    
+    return description
+    
+def get_units(variable):
+    """Define units for VALID_VARIABLES
+    """
+    #TODO: figure out units for the analysis increments and return them below
+    return "None"
 
 #TODO: move get_gridcell_area_data_path() to utils file
 def get_gridcell_area_data_path():
@@ -104,4 +143,27 @@ class IncrementsHv(object):
         
         harvested_data = list()
         
+        rootgrp = Dataset(self.config.harvest_filename)
+        
+        gridcell_area_data = Dataset(get_gridcell_area_data_path())
+        gridcell_area_weights = gridcell_area_data.variables['area']
+        
+        for i, variable in enumerate(self.config.get_variables()):
+            """ The first nested loop iterates through each requested variable
+            """
+            variable_data = rootgrp.variables[variable]
+            
+            if 'long_name' in variable_data.ncattrs():
+                longname = variable_data.long_name
+            elif 'longname' in variable_data.ncattrs():
+                longname = variable_data.longname
+            else:
+                longname = get_longname(variable)
+            if 'units' in variable_data.ncattrs():
+                units = variable_data.units
+            else:
+                units = get_units(variable)
+            
+            ipdb.set_trace()
+            
         return harvested_data
