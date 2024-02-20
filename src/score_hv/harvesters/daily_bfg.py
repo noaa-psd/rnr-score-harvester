@@ -47,14 +47,6 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'mediantime',
                                              'longname'])
 
-"""
-  Create an instance of the var_stats class so
-  so we can use it to calculate statistics. This
-  class is defined in src/score_hv.
-  """
-var_stats_instance = var_stats()
-
-
 def get_gridcell_area_data_path():
     return os.path.join(Path(__file__).parent.parent.parent.parent.resolve(),
                         'data', 'gridcell-area' + 
@@ -180,7 +172,7 @@ class DailyBFGHv(object):
                     """
                  required_vars  = ['dswrf_ave','dlwrf_ave','ulwrf_ave','uswrf_ave','shtfl_ave','lhtfl_ave'] 
                  num_vars       = len(required_vars)
-                 
+                 var_stats_instance = var_stats() 
                  for index in range(0,num_vars): 
                      var_name   = required_vars[index]
                      var_data   = xr_dataset[var_name]
