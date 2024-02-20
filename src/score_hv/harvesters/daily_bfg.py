@@ -26,8 +26,8 @@ VALID_VARIABLES  = (
                     #'lhtfl_ave', # surface latent heat flux (W m^-2)
                     #'netrf_avetoa',#top of atmoshere net radiative flux (SW and LW) (W/m**2)
                     'netR',#surface energy balance (W/m**2)
-                    #'prate_ave', # surface precip rate (mm weq. s^-1)
-                    #'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
+                    'prate_ave', # surface precip rate (mm weq. s^-1)
+                    'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
                     #'soil4', # liquid soil moisture at layer-4 (?)
@@ -212,6 +212,7 @@ class DailyBFGHv(object):
                      units = variable_data.attrs['units']
                  else:
                       units = "None"
+                 gridcell_area_weights = gridcell_area_data.variables['area']       
                  expected_value, sumweights = np.ma.average(temporal_means,
                                                   weights=gridcell_area_weights,
                                                   returned=True)
@@ -251,7 +252,6 @@ class DailyBFGHv(object):
                       value = themaxs 
                    else:                                            
                       value= np.ma.max(temporal_means)
-                      num_vars  = len(required_vars)  
 
                 elif statistic == 'minimum':
                     if variable == 'netR':
