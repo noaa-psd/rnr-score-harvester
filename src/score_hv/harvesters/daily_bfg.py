@@ -2,18 +2,17 @@
 
 import os
 import sys
-from pathlib import Path
-
-import numpy as np
-from netCDF4 import MFDataset
 import xarray as xr
-from datetime import datetime as dt
+import numpy as np
 import cftime
+from pathlib import Path
+from netCDF4 import MFDataset
+from datetime import datetime as dt
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
-
 from score_hv.config_base import ConfigInterface
+from score_hv.stats_utils import var_stats
 
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
@@ -22,9 +21,12 @@ VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
 Commented out variables can be uncommented to generate gridcell weighted
 statistics but are in development and are currently not fully supported.
 """
-VALID_VARIABLES  = (#'icetk', # sea ice thickness (m)
+VALID_VARIABLES  = (
+                    #'icetk', # sea ice thickness (m)
                     #'lhtfl_ave', # surface latent heat flux (W m^-2)
-                    #'prate_ave', # surface precip rate (mm weq. s^-1)
+                    #'netrf_avetoa',#top of atmoshere net radiative flux (SW and LW) (W/m**2)
+                    'netR',#surface energy balance (W/m**2)
+                    'prate_ave', # surface precip rate (mm weq. s^-1)
                     'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
@@ -45,6 +47,7 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'units',
                                              'mediantime',
                                              'longname'])
+
 def get_gridcell_area_data_path():
     return os.path.join(Path(__file__).parent.parent.parent.parent.resolve(),
                         'data', 'gridcell-area' + 
@@ -99,7 +102,6 @@ class DailyBFGConfig(ConfigInterface):
     def get_variables(self):
         ''' return list of all variable types based on harvest_config'''
         return self.variables
-
 @dataclass
 class DailyBFGHv(object):
     """ Harvester dataclass used to parse daily mean statistics from 
@@ -117,7 +119,6 @@ class DailyBFGHv(object):
                   returns a list of tuples containing specific data
     """
     config: DailyBFGConfig = field(default_factory=DailyBFGConfig)
-    
     def get_data(self):
         """ Harvests requested statistics and variables from background 
             forecast data and returns harvested_data, a list of HarvestData 
@@ -132,16 +133,14 @@ class DailyBFGHv(object):
             half of the time step gives the temporal midpoints, which are
             then used to determine the multi-file temporal midpoint.
         """
-        harvested_data = list()
+        harvested_data    = list()
         
         xr_dataset = xr.open_mfdataset(self.config.harvest_filenames, 
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
-    
-        gridcell_area_data = xr.open_dataset(get_gridcell_area_data_path())
-        gridcell_area_weights = (gridcell_area_data.variables['area'])
-        
+        gridcell_area_data    = xr.open_dataset(get_gridcell_area_data_path())
+
         temporal_endpoints = np.array([cftime.date2num(time,
             'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
         
@@ -156,46 +155,105 @@ class DailyBFGHv(object):
         else:
             median_cftime = cftime.num2date(np.median(temporal_endpoints),
                                             'hours since 1951-01-01 00:00:00')
-        
+
         for i, variable in enumerate(self.config.get_variables()):
-            """ The first nested loop iterates through each requested variable
-            """
-            variable_data = xr_dataset[variable]
-            temporal_means = np.ma.masked_invalid(variable_data.mean(dim='time',
-                                                                   skipna=True))
-            if 'long_name' in variable_data.attrs:
-                longname = variable_data.attrs['long_name']
-            else:
-                longname = "None"
-            if 'units' in variable_data.attrs:
-                units = variable_data.attrs['units']
-            else:
-                units = "None"
-            
-            expected_value, sumweights = np.ma.average(temporal_means,
+            """ The first nested loop iterates through each requested variable.
+               """
+
+            if variable == 'netR': 
+                 """The variable name netR referes to the 
+                    surface energy balance. The required varibles are:
+                    dswrf_ave : averaged surface downward shortwave flux
+                    dlwrf_ave : surface downward longwave flux
+                    ulwrf_ave : surface upward longwave flux
+                    uswrf_ave : averaged surface upward shortwave flux
+                    shtfl_ave : surface sensible heat flux
+                    lhtfl_ave : surface latent heat flux
+                    netR = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
+                    """
+                 required_vars  = ['dswrf_ave','dlwrf_ave','ulwrf_ave','uswrf_ave','shtfl_ave','lhtfl_ave'] 
+                 num_vars       = len(required_vars)
+                 var_stats_instance = var_stats() 
+                 for index in range(0,num_vars): 
+                     var_name   = required_vars[index]
+                     var_data   = xr_dataset[var_name]
+                     var_stats_instance.calculate_var_means(var_data,gridcell_area_data)
+                 """The expected value is the weighted averages that are returned from
+                    the function get_weighted_averages in stats_utils..  
+                    It is calculated as follows:
+                    weighted_averages[0] = weighted averages of dswrf_ave
+                    weighted_averages[1] = weighted averages of dlwrf_ave
+                    weighted_averages[2] = weighted_averages of ulwrf_ave
+                    weighted_averages[3] = weighted averages of uswrf_ave
+                    weighted_averages[4] = weighted averages of shtfl_ave
+                    weighted_averages[5] = weighted_averages of lhtfl_ave
+                 """
+                 weighted_averages = var_stats_instance.get_weighted_averages()
+                 expected_value = weighted_averages[0] + weighted_averages[1] - weighted_averages[2] - \
+                                  weighted_averages[3] - weighted_averages[4] - weighted_averages[5] 
+                 longname           = "surface energy balance"
+                 units              = "W/m**2"
+            else:     
+                 variable_data  = xr_dataset[variable]
+                 var_mean      = np.ma.masked_invalid(variable_data.mean(dim='time',skipna=True))
+                 temporal_means= var_mean                                             
+                 if 'long_name' in variable_data.attrs:
+                     longname = variable_data.attrs['long_name']
+                 else:
+                     longname = "None"
+                 if 'units' in variable_data.attrs:
+                     units = variable_data.attrs['units']
+                 else:
+                      units = "None"
+                 gridcell_area_weights = gridcell_area_data.variables['area']       
+                 expected_value, sumweights = np.ma.average(temporal_means,
                                                   weights=gridcell_area_weights,
                                                   returned=True)
-            assert sumweights >= 0.999 * 4. * np.pi
-            assert sumweights <= 1.001 * 4. * np.pi
+                 assert sumweights >= 0.999 * 4. * np.pi
+                 assert sumweights <= 1.001 * 4. * np.pi
             
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic
                 """
                 if statistic == 'mean':
-                    value = expected_value
-                
+                   if variable == 'netR':
+                      var_means = []
+                      var_means.append(expected_value)
+                      for index in range(0,num_vars):
+                          var_means.append(weighted_averages[index])
+                      value = var_means
+                   else:
+                      value = expected_value
+
                 elif statistic == 'variance':
-                    value = -expected_value**2 + np.ma.sum(
+                   if variable == 'netR':
+                      var_variance = []
+                      num_vars     = len(required_vars)
+                      var_variance = var_stats_instance.calculate_var_variance(num_vars,gridcell_area_data) 
+                      value = var_variance 
+                   else:    
+                      value = -expected_value**2 + np.ma.sum(
                                                    temporal_means**2 * 
                                                    (gridcell_area_weights / 
                                                    gridcell_area_weights.sum()))
-                
                 elif statistic == 'maximum':
-                    value = np.ma.max(temporal_means)
-                
+                   if variable == 'netR':
+                      themaxs  = []
+                      num_vars = len(required_vars)  
+                      themaxs  = var_stats_instance.get_maximum_values(num_vars) 
+                      value = themaxs 
+                   else:                                            
+                      value= np.ma.max(temporal_means)
+
                 elif statistic == 'minimum':
-                    value = np.ma.min(temporal_means)
+                    if variable == 'netR':
+                      num_vars  = len(required_vars)  
+                      themins   = []
+                      themins   = var_stats_instance.get_minimum_values(num_vars) 
+                      value = themins
+                    else:
+                      value = np.ma.min(temporal_means)
                 
                 harvested_data.append(HarvestedData(
                                     self.config.harvest_filenames,
