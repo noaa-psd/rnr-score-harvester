@@ -13,7 +13,7 @@ from netCDF4 import Dataset
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
-from score_hv.harvesters.innov_netcdf import Region, InnovStatsCfg
+from score_hv.harvesters.region_utils import GeoRegion 
 
 TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_prateb_control.nc',
                         'bfg_1994010106_fhr06_prateb_control.nc',

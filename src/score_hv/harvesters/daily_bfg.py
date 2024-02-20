@@ -13,12 +13,11 @@ from dataclasses import dataclass
 from dataclasses import field
 from score_hv.config_base  import ConfigInterface
 from score_hv.stats_utils  import var_stats
-from score_hv.innov_netcdf import DEFAULT_REGIONS
+from score_hv.region_utils import GeoRegions
 
 
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
-VALID_REGIONS    = ('equatorial', 'global' ,'north_hemis', 'tropics', 'south_hemis')
 
 
 """Variables of interest that come from the background forecast data.
@@ -171,12 +170,13 @@ class DailyBFGHv(object):
           """
         num_regions = 0  
         if 'region' in HarvestedData._fields:
-            theregions  = self.config.region 
-            num_regions = len(theregions)
+            regions  = GeoRegions('name': 'global', 'min_lat': -90.0, 'max_lat': 90.0, 'east_lon': 0.0, 'west_lon': 360.0)
+            user_regions  = self.config.region 
+            num_regions = len(user_regions)
             print(theregions)
             lat_values  = xr_dataset['grid_yt'].values
             lon_values  = xr_dataset['grid_xt'].values
-      
+            sys.exit(0)
         temporal_endpoints = np.array([cftime.date2num(time,
             'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
         
