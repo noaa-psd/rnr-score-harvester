@@ -2,12 +2,17 @@
 increments (from the fv3_increment6.nc files)
 """
 
+import os
+from pathlib import Path
 from collections import namedtuple
 from dataclasses import dataclass, field
 
 from netCDF4 import Dataset
+import numpy as np
 
 from score_hv.config_base import ConfigInterface
+
+import ipdb
 
 HARVESTER_NAME = 'replay_analysis_increments'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
@@ -34,6 +39,7 @@ HarvestedData = namedtuple('HarvestedData', ['filename',
                                              'statistic',
                                              'variable',
                                              'values',
+                                             'levels',
                                              'units',
                                              'longname'])
 
@@ -80,7 +86,7 @@ class IncrementsConfig(ConfigInterface):
     def set_config(self):
         """function to set configuration variables from given dictionary
         """
-        self.harvest_filenames = self.config_data.get('filenames')
+        self.harvest_filename = self.config_data.get('filename')
         self.set_stats()
         self.set_variables()
 
@@ -164,6 +170,33 @@ class IncrementsHv(object):
             else:
                 units = get_units(variable)
             
-            ipdb.set_trace()
+            expected_values = list()
+            levels = list()
+            for level_idx in range(variable_data.shape[0]):
+                """Calculate statistics for each vertical level
+                """
+                expected_value, sumweights = np.ma.average(
+                                               variable_data[level_idx],
+                                               weights=gridcell_area_weights[:],
+                                               returned=True)
+                expected_values.append(expected_value)
+                levels.append(rootgrp.variables['lev'][:][level_idx])
+                
+            for j, statistic in enumerate(self.config.get_stats()):
+                """ The second nested loop iterates through each requested 
+                    statistic
+                """
+                if statistic == 'mean':
+                    values = expected_values
+            
+                harvested_data.append(HarvestedData(
+                                        self.config.harvest_filename,
+                                        'NEED_CYCLETIME',
+                                        statistic, 
+                                        variable,
+                                        values,
+                                        levels,
+                                        units,
+                                        longname))
             
         return harvested_data
