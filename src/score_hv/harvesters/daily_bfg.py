@@ -120,9 +120,7 @@ class DailyBFGHv(object):
                   returns a list of tuples containing specific data
     """
     config: DailyBFGConfig = field(default_factory=DailyBFGConfig)
-    
-    
-    
+     
     def get_data(self):
         """ Harvests requested statistics and variables from background 
             forecast data and returns harvested_data, a list of HarvestData 
@@ -216,7 +214,7 @@ class DailyBFGHv(object):
                     statistic
                 """
                 if statistic == 'mean':
-                  value = expected_value
+                    value = expected_value
                 elif statistic == 'variance':
                     value = stats_utils.area_weighted_variance(
                                                 temporal_means,
