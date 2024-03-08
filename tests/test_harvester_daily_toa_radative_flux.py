@@ -85,7 +85,7 @@ def test_variable_names():
 
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].units == "kg/m**2"
+    assert data1[0].units == 'W/m**2'
 
 def test_cycletime():
     """ The hard coded datetimestr 1994-01-01 12:00:00
@@ -101,8 +101,7 @@ def test_cycletime():
 
 def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)
-    var_longname = "toa_net_radiative_flux"
-    assert data1[0].longname == var_longname
+    assert data1[0].longname == "Top of atmosphere net radiative energy flux"
 
 def test_global_mean_values(tolerance=0.001):
     """The value of 10.022175263719816 is the mean value of the global means
@@ -114,8 +113,8 @@ def test_global_mean_values(tolerance=0.001):
     """
     data1 = harvest(VALID_CONFIG_DICT)
     global_mean = 10.022175263719816
-    assert data1[0].value[0] <= (1 + tolerance) * global_mean
-    assert data1[0].value[0] >= (1 - tolerance) * global_mean
+    assert data1[0].value <= (1 + tolerance) * global_mean
+    assert data1[0].value >= (1 - tolerance) * global_mean
 
 def test_global_mean_values2(tolerance=0.001):
     """This function tests the weighted means of each of the required variables.
