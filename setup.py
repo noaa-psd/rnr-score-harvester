@@ -1,7 +1,8 @@
 """
 
-Setup.py file to configure/install rnr-score-harvester module
+Setup.py file to configure/install score-hv module
 
 """
 import setuptools
 setuptools.setup()
+
