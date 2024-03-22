@@ -178,18 +178,25 @@ class DailyBFGHv(object):
                 longname = "Top of atmosphere net radiative energy flux"
                 units = "W/m**2"
                 
-                #TODO: probably should add try/except block here for cases
-                # when component variables are not found
-                temporal_means = (
-                    np.ma.masked_invalid(xr_dataset['dswrf_avetoa'].mean(
+                try:
+                    temporal_means = (
+                        np.ma.masked_invalid(xr_dataset['dswrf_avetoa'].mean(
                                                                 dim='time',
                                                                 skipna=True)) - 
-                    np.ma.masked_invalid(xr_dataset['uswrf_avetoa'].mean(
+                        np.ma.masked_invalid(xr_dataset['uswrf_avetoa'].mean(
                                                                 dim='time',
                                                                 skipna=True)) - 
-                    np.ma.masked_invalid(xr_dataset['ulwrf_avetoa'].mean(
+                        np.ma.masked_invalid(xr_dataset['ulwrf_avetoa'].mean(
                                                                 dim='time',
                                                                 skipna=True)))
+                except KeyError as err:
+                    msg = (f'{xr_dataset.data_vars} '
+                           'do not include all '
+                           'variables needed to calculate TOA net '
+                           'radiative energy flux '
+                           '("dswrf_avetoa," "uswrf_avetoa" and '
+                           '"ulwrf_avetoa")')
+                    raise KeyError(msg) from err
                                                                 
             else:
                 variable_data = xr_dataset[variable]
