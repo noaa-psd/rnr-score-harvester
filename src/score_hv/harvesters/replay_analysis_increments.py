@@ -11,8 +11,7 @@ from netCDF4 import Dataset
 import numpy as np
 
 from score_hv.config_base import ConfigInterface
-
-import ipdb
+from score_hv import stats_utils
 
 HARVESTER_NAME = 'replay_analysis_increments'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
@@ -97,16 +96,12 @@ class IncrementsConfig(ConfigInterface):
         self.variables = self.config_data.get('variable')
         for var in self.variables:
             if var not in VALID_VARIABLES:
-                msg = ("'%s' is not a supported "
+                msg = (f"{var} is not a supported "
                        "variable to harvest from the replay analysis " 
                        "increments (fv3_increment6.nc). "
                        "Please reconfigure the input dictionary using only the "
-                       "following variables: %r" % (var, VALID_VARIABLES))
+                       f"following variables: {VALID_VARIABLES}")
                 raise KeyError(msg)
-    
-    def get_stats(self):
-        '''return list of all stat types based on harvest_config '''
-        return self.stats
 
     def set_stats(self):
         """set the statistics specified by the config dict
@@ -114,15 +109,11 @@ class IncrementsConfig(ConfigInterface):
         self.stats = self.config_data.get('statistic')
         for stat in self.stats:
             if stat not in VALID_STATISTICS:
-                msg = ("'%s' is not a supported statistic to harvest from "
+                msg = ("{stat} is not a supported statistic to harvest from "
                        "the replay analysis increments (fv3_increment6.nc). "
                        "Please reconfigure the input dictionary using only the "
-                       "following statistics: %r" % (stat, VALID_STATISTICS))
+                       f"following statistics: {VALID_STATISTICS}")
                 raise KeyError(msg)
-
-    def get_variables(self):
-        '''return list of all variable types based on harvest_config'''
-        return self.variables
 
 @dataclass
 class IncrementsHv(object):
@@ -175,10 +166,10 @@ class IncrementsHv(object):
             for level_idx in range(variable_data.shape[0]):
                 """Calculate statistics for each vertical level
                 """
-                expected_value, sumweights = np.ma.average(
-                                               variable_data[level_idx],
-                                               weights=gridcell_area_weights[:],
-                                               returned=True)
+                expected_value = stats_utils.area_weighted_mean(
+                                                    variable_data[level_idx],
+                                                    gridcell_area_weights[:])
+                
                 expected_values.append(expected_value)
                 levels.append(rootgrp.variables['lev'][:][level_idx])
                 
@@ -188,6 +179,8 @@ class IncrementsHv(object):
                 """
                 if statistic == 'mean':
                     values = expected_values
+                elif statistic == 'variance':
+                    for 
             
                 harvested_data.append(HarvestedData(
                                         self.config.harvest_filename,
