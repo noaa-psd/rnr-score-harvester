@@ -1,7 +1,6 @@
-#!/usr/bin/env python
-
-"""Monitor the Gridpoint Statistical Interpolation (GSI) observation innovation
-statistics: satellite radiance data
+"""methods to extract information from the Gridpoint Statistical Interpolation 
+(GSI) analysis output (fit files), including innovation statistics for 
+satellite radiance/brightness temperature observation data for each channel
 """
 
 import os
@@ -9,21 +8,27 @@ import warnings
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
+from datetime import datetime
 
 from score_hv.config_base import ConfigInterface
 
-HARVESTER_NAME = 'gsi_radiance_data'
+HARVESTER_NAME = 'gsi_radiance_channel'
 N_BIAS_CORR_COEF = 12
 
-VALID_DATA_TYPES = ('satinfo_channels',
-                    'channel_stats',
-                    'radiance_observation_types',
-                    'observation_type_summary',
-                    'observation_totals')
+VALID_STATISTICS = (
+    'nobs_used', # number of obs used in GSI analysis
+    'nobs_tossed', # number of obs tossed by gross check
+    'variance',
+    'bias_pre_corr', # observation minus guess before bias correction
+    'bias_post_corr', # observation minus guess after bias correction
+    'penalty', # penalty contribution
+    'sqrt_bias', # square root of (o-g with bias correction)**2 (?)
+    'std' # standard deviation
+)
 
 SatinfoChannel = namedtuple(
     'SatinfoChannel', [
-        'cycletime',
+        'datetime',
         'name',
         'chan',
         'var',
@@ -39,76 +44,22 @@ SatinfoChannel = namedtuple(
     ]
 )
 
-SatinfoChannelStats = namedtuple(
-    'SatinfoChannelStats', [
-        'cycletime',
-        'gsi_stage',
+SatinfoChannelStat = namedtuple(
+    'SatinfoChannelStat', [
+        'datetime', # datetime.datetime object (date and a time)
+        'iteration', # GSI outer loop number
         'series_number', # series number of the channel in satinfo file
         'channel', # channel number for certain radiance observation type
-        'observation_type', # radiance observation type (e.g., hirs2_tirosn)
-        'nobs_used', # number of obs used in GSI analysis within this channel
-        'nobs_tossed', # number of obs tossed by gross check within this channel
-        'variance', # variance for each satellite channel
-        'bias_pre_corr', # observation minus guess before bias correction
-        'bias_post_corr', # observation minus guess after bias correction
-        'penalty', # penalty contribution from this channel
-        'sqrt_bias', # square root of (o-g with bias correction)**2 (?)
-        'std' # standard deviation
-    ]
-)
-                                               
-RadianceObservationType = namedtuple(
-    'RadianceObservationType',
-        ['cycletime',
-         'gsi_stage', 
-         'sat', # satellite name
-         'type', # instrument type
-         'penalty', # contribution to cost function from this observation type
-         'nobs', # number of good observations used in the assimilation
-         'iland', # number of observations over land
-         'isnoice', # number of observations over sea ice and snow
-         'icoast', # number of observations over coast
-         'ireduce', # number of observations that reduce qc bounds in tropics
-         'ivarl', # number of observations removed by gross check
-         'nlgross', # number of observations removed by nonlinear qc
-         'qcpenalty', # nonlinear qc penalty from this data type
-         'qc1to7' # number of observations whose quality control criteria has
-                  # been adjusted by each qc method (1-7)
-    ]
-)
-
-RadianceObservationTypeSummary = namedtuple(
-    'RadianceObservationTypeSummary', [
-        'cycletime',
-        'gsi_stage', # GSI stage (determined by harvester)
-        'it', # GSI stage (per the fit file)
-        'satellite', # satellite name
-        'instrument', # instrument name
-        'nread', # num channels read in within analysis time window and domain
-        'nkeep', # num channels kept after data thinning
-        'nassim', # num channels used in analysis (passed all qc process)
-        'penalty', # contribution from this observation type to cost function
-        'qcpnlty', # nonlinear qc penalty from this data type
-        'cpen', # penalty divided by the number of data assimilated
-        'qccpen', # qcpnlty divided by the number of data assimilated
-    ]
-)
- 
-RadianceObservationTotals = namedtuple(
-    'RadianceObservationTotals', [
-        'cycletime',
-        'gsi_stage',
-        'rad_total_penalty_all', # summary of penalty for all radiance 
-                                # observation types
-        'rad_total_qcpenalty_all', # summary of qcpenalty for all radiance                             # observation types
-        'rad_total_failed_nonlinqc' # summary of observations removed by 
-                                    # nonlinear qc for all radiance observation
-                                    # types
+        'satellite', # radiance observation type (satellite)
+        'instrument', # radiance observation type (instrument)
+        'statistic',
+        'value',
+        'longname',
     ]
 )
 
 @dataclass
-class RadianceDataConfig(ConfigInterface):
+class SatinfoChannelConfig(ConfigInterface):
 
     config_data: dict = field(default_factory=dict)
 
@@ -119,26 +70,26 @@ class RadianceDataConfig(ConfigInterface):
         """ function to set configuration variables from given dictionary
         """
         self.harvest_filename = self.config_data.get('filename')
-        self.set_data_types()
+        self.set_statistics()
     
-    def set_data_types(self):
-        self.data_to_harvest = self.config_data.get('data_types')
-        for data_type in self.data_to_harvest:
-            if data_type not in VALID_DATA_TYPES:
-                msg = (f"{data_type} is not a supported data "
-                       "type to harvest from the gsistats file. "
+    def set_statistics(self):
+        self.stats_to_harvest = self.config_data.get('statistics')
+        for stat in self.stats_to_harvest:
+            if stat not in VALID_STATISTICS:
+                msg = (f"{stat} is not a supported statistic "
+                       "to harvest from the GSI analysis fit files. "
                        "Please reconfigure the input dictionary using only the "
-                       f"following data types: {VALID_DATA_TYPES}")
+                       f"following statistics: {VALID_STATISTICS}")
                 raise KeyError(msg)
 
 @dataclass
-class RadianceDataHv(object):
-    """Harvester dataclass used to parse gsistats file
+class SatinfoChannelHv(object):
+    """Harvester dataclass used to parse GSI analysis fit file
     
     Parameters:
     -----------
-    config: RadianceDataConfig object containing information used to determine 
-    which data to extract from the gsistats file
+    config: SatinfoChannelConfig object containing information used to 
+    determine which data to extract from the GSI analysis fit file
     
     Methods:
     --------
@@ -146,37 +97,71 @@ class RadianceDataHv(object):
     
     returns a list of tuples containing specific data
     """
-    config: RadianceDataConfig = field(default_factory=RadianceDataConfig)
+    config: SatinfoChannelConfig = field(default_factory=SatinfoChannelConfig)
 
     def get_data(self):
-        """Read the fit file (from gsistats)
+        """Read the fit file (from the GSI analysis output)
+        
+        returns a list of SatinfoChannelStat tuples
         """
         self.channels = list()
         self.channel_stats = list()
-        self.observation_type = list()
-        self.radiance_totals = list()
-        self.observation_type_summary = list()
+        
+        # get the datetime from the input file name
+        self.datetime = datetime.strptime(
+            self.config.harvest_filename.split('.')[-1].split('_')[0],
+            '%Y%m%d%H')
         
         with open(self.config.harvest_filename, encoding="utf-8") as f:
             self.lines = list(f)
             
         self.parse_fit_file()
         
-        harvested_data = dict()
-        for data_type in self.config.data_to_harvest:
-            if data_type == 'satinfo_channels':
-                harvested_data[data_type] = self.channels
-            elif data_type == 'channel_stats':
-                harvested_data[data_type] = self.channel_stats
-            elif data_type == 'radiance_observation_types':
-                harvested_data[data_type] = self.observation_type
-            elif data_type == 'observation_type_summary':
-                harvested_data[data_type] = self.observation_type_summary
-            elif data_type == 'observation_totals':
-                harvested_data == self.radiance_totals
+        return self.channel_stats
         
-        return harvested_data
+    def get_channel_stats(self, line_parts):
+        """iterate through the requested statistics and extract relevant data
         
+        appends the self.channel_stats list with a SatinfoChannelStat tuple
+        """
+        for stat in self.config.stats_to_harvest:
+            if stat == 'nobs_used':
+                value = int(line_parts[3])
+                longname = 'number of observations used in the GSI analysis'
+            elif stat == 'nobs_tossed':
+                value = int(line_parts[4])
+                longname = 'number of observations tossed by gross check'
+            elif stat == 'variance':
+                value = float(line_parts[5])
+                longname = 'variance for satellite channel'
+            elif stat == 'bias_pre_corr':
+                value = float(line_parts[6])
+                longname = 'observation minus guess before bias correction'
+            elif stat == 'bias_post_corr':
+                value = float(line_parts[7])
+                longname = 'observation minus guess after bias correction'
+            elif stat == 'penalty':
+                value = float(line_parts[8])
+                longname = 'penalty contribution from channel'
+            elif stat == 'sqrt_bias':
+                value = float(line_parts[9])
+                longname = 'square root of (o-g with bias correction)**2'
+            elif stat == 'std':
+                value = float(line_parts[10])
+                longname = 'standard deviation'
+        
+            self.channel_stats.append(SatinfoChannelStat(
+                self.datetime,
+                self.gsi_stage,
+                int(line_parts[0]),
+                int(line_parts[1]),
+                line_parts[2].split('_')[1],
+                line_parts[2].split('_')[0],
+                stat,
+                value,
+                longname
+            ))
+                    
     def parse_fit_file(self):
         """ parse lines of fit file and extract statistics
         """
@@ -189,13 +174,15 @@ class RadianceDataHv(object):
             line_parts = line.split()
             
             if radinfo_read1:
-                """harvest satinfo content
+                """RADINFO_READ PART 1
+                
+                harvest satinfo content
                 """
                 channel_index = int(line_parts[0]) - 1
                 
                 line2list = line.split('=')
                 self.channels.append(SatinfoChannel(
-                                           'cycletime',
+                                           self.datetime,
                                            line_parts[1],
                                            int(line2list[1].split()[0]),
                                            float(line2list[2].split()[0]),
@@ -217,7 +204,9 @@ class RadianceDataHv(object):
                     radinfo_read1 = False
                 
             elif radinfo_read2:
-                """harvest bias correction coeficients
+                """RADINFO_READ PART 2
+                
+                harvest bias correction coeficients
                 """
                 channel_index = int(line_parts[0]) - 1
                 
@@ -250,42 +239,9 @@ class RadianceDataHv(object):
                 """harvest radiance observation fit file statistics as a
                 function of channel
                 """
-                self.channel_stats.append(SatinfoChannelStats(
-                    'cycletime',
-                    self.gsi_stage,
-                    int(line_parts[0]),
-                    int(line_parts[1]),
-                    line_parts[2],
-                    int(line_parts[3]),
-                    int(line_parts[4]),
-                    float(line_parts[5]),
-                    float(line_parts[6]),
-                    float(line_parts[7]),
-                    float(line_parts[8]),
-                    float(line_parts[9]),
-                    float(line_parts[10])
-                ))
-            
-            if finalsummary_read and len(line_parts) == 12:
-                """harvest final summary for each observation type
-                """
-                self.observation_type_summary.append(
-                    RadianceObservationTypeSummary(
-                        'cycletime',
-                        self.gsi_stage,
-                        f'{line_parts[0]} {line_parts[1]} {line_parts[2]} ',
-                        line_parts[3],
-                        line_parts[4],
-                        int(line_parts[5]),
-                        int(line_parts[6]),
-                        int(line_parts[7]),
-                        float(line_parts[8]),
-                        float(line_parts[9]),
-                        float(line_parts[10]),
-                        float(line_parts[11]),
-                    )
-                )
-            elif finalsummary_read:
+                self.get_channel_stats(line_parts)
+
+            if finalsummary_read and len(line_parts) != 12:
                 """Radiance observation statistics are provided in three
                 stages from GSI; tracking GSI stage here, after
                 completion of the final summary section
@@ -306,65 +262,14 @@ class RadianceDataHv(object):
                     """proceed with bias correction coefficients
                     """
                     radinfo_read2 = True
-                
-                elif line_parts[0] == 'sat' and line_parts[1] == 'type':
-                    """harvest radiance observation fit file statistics as a
-                    function of observation type
-                    """ 
-                    self.get_observation_type_stats(line_number)
                     
                 elif line_parts[0] == 'rad' and line_parts[2] == 'penalty_all=':
-                    """harvest radiance observation fit file statistics for
-                    all observation types
+                    """proceed with channel statistics
                     """
-                    self.get_radiance_totals(line_number)
                     channelstats_read = True
                     
                 elif line_parts[0] == 'it' and line_parts[1] == 'satellite':
-                    """proceed with final summary for each observation type
+                    """final summary for each observation type
                     """
                     channelstats_read = False
                     finalsummary_read = True
-            
-    def get_radiance_totals(self, header_line_number):
-        """extract totals for all radiance observation types
-        """
-        line0_list = self.lines[header_line_number].split()
-        line1_list = self.lines[header_line_number + 1].split()
-        line2_list = self.lines[header_line_number + 2].split()
-        
-        self.radiance_totals.append(RadianceObservationTotals(
-            'cycletime',
-            self.gsi_stage,
-            float(line0_list[3]),
-            float(line1_list[3]),
-            int(line2_list[4])
-            )
-        )           
-                    
-    def get_observation_type_stats(self, header_line_number):
-        """extract radiance observation type statistics
-        """
-        line1_list = self.lines[header_line_number + 1].split()
-        line3_list = self.lines[header_line_number + 3].split()
-        
-        qc1to7 = list()
-        qc1to7.extend(map(int, line3_list[1:]))
-        
-        self.observation_type.append(RadianceObservationType(
-            'cycletime',
-            self.gsi_stage,
-            line1_list[0],
-            line1_list[1],
-            float(line1_list[2]),
-            int(line1_list[3]),
-            int(line1_list[4]),
-            int(line1_list[5]),
-            int(line1_list[6]),
-            int(line1_list[7]),
-            int(line1_list[8]),
-            int(line1_list[9]),
-            float(line3_list[0]),
-            qc1to7
-            )
-        )
