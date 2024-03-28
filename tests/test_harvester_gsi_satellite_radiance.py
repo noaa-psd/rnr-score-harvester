@@ -63,6 +63,26 @@ def test_channel_stats_meta():
     assert data[-1].channel == 2
     assert data[-1].satellite == 'tirosn'
     assert data[-1].instrument == 'ssu'
+    
+def test_channel_stats_nobs():
+    valid_config_dict = VALID_CONFIG_DICT
+    valid_config_dict['statistics'] = ('nobs_used', 'nobs_tossed')
+    
+    data = harvest(valid_config_dict)
+    
+    try:
+        assert data[2].statistic == 'variance'
+        exception_caught = False
+    except AssertionError:
+        exception_caught = True
+        
+    assert exception_caught
+    
+    assert data[0].statistic == 'nobs_used'
+    assert data[0].value == 11482
+    assert data[1].statistic == 'nobs_tossed'
+    assert data[1].value == 1184
+        
 '''
 def test_final_summary():
     data1 = harvest({'harvester_name': hv_registry.GSI_STATS,
