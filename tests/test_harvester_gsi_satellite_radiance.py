@@ -80,8 +80,10 @@ def test_channel_stats_nobs():
     
     assert data[0].statistic == 'nobs_used'
     assert data[0].value == 11482
+    assert data[0].longname == 'number of observations used in the GSI analysis'
     assert data[1].statistic == 'nobs_tossed'
     assert data[1].value == 1184
+    assert data[1].longname == 'number of observations tossed by gross check'
         
 '''
 def test_final_summary():
