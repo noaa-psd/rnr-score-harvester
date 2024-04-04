@@ -41,12 +41,16 @@ increment descriptive statistics from log files
 
 **Expected file format**: log
 
+#TODO: add required dictionary inputs and options
+
 ### daily_bfg
 Daily mean statistics from background forecast data 
 
 **Expected file format**: netcdf 
 
 File format generated as bfg file
+
+#TODO: add required dictionary inputs and options
 
 ### innov_stats_netcdf
 innovation statistics for temperature, spechumid, uvwind, and salinity 
