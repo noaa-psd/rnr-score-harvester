@@ -66,17 +66,26 @@ class var_stats:
                          the calling function.
            Return:weighted_average
            """
-        weighted_average=np.ma.average(temporal_mean,weights=gridcell_area_weights)
-        self.weighted_averages.append(weighted_average)
-        return weighted_average
+        value = np.ma.average(temporal_mean,weights=gridcell_area_weights)
+        self.weighted_averages.append(value)
+        return value 
 
     def calculate_var_variance(self,gridcell_area_weights,temporal_mean,weighted_average):
         """
-          returns the gridcell weighted variance of the requested variables using
+          This function returns the gridcell weighted variance of the requested variables using
           the following formula:
           variance = sum_R{ w_i * (x_i - xbar)^2 },
           where sum_R represents the summation for each value x_i over the region of 
           interest R with normalized gridcell area weights w_i and weighted mean xbar
+          Parameters:
+          gridcell_area_weights:the gridcell weights are from the data file
+                                 bfg_control_1536x768_20231116.nc.
+                                 Located in the data area of score-hv.
+           temporal_mean:the temporal means array that is calculated in
+                         the calling function. 
+           weighted_average: the weighted averages are calculated in the 
+                             function calculate_weighted_average which
+                             is in this python script.
           """
         norm_weights=gridcell_area_weights/np.sum(gridcell_area_weights)
 
@@ -88,7 +97,8 @@ class var_stats:
         """
           This function finds the minimum values of the temporal_means array 
           Parameters:
-          temporal_means:The array of means for the requested variable.
+          temporal_means:The array of means for the requested variable that
+                          is calculated in the calling script.
           Return:Nothing is returned.
           """
         temporal_means_array=np.array(temporal_mean)
@@ -98,7 +108,8 @@ class var_stats:
         """
           This function finds the maximum value of the temporal_means array. 
           Parameters:
-          temporal_means:The array of means for the requested variable.
+          temporal_means:The array of means for the requested variable that is
+                         calcuated in the calling script.
           Return:Nothing is returned.
           """
         temporal_means_array=np.array(temporal_mean)
