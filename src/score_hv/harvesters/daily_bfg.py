@@ -242,7 +242,7 @@ class DailyBFGHv(object):
         check_weights(gridcell_area_weights,total_original_elements,total_regional_elements) 
         
         regions_instance=GeoRegions()
-        user_regions = self.config.regions
+        user_regions = self.config.region
         if user_regions:
            """
              The user has requested a region/regions so we need to
@@ -282,7 +282,7 @@ class DailyBFGHv(object):
                  units="W/m**2"
             elif var_name == "netrf_avetoa":
                  variable_data=calculate_toa_radative_flux(xr_dataset)
-                 longname="top of atmosphere net radiative flux"
+                 longname="Top of atmosphere net radiative flux"
                  units="W/m**2"
             else:     
                  variable_data=xr_dataset[variable]
@@ -311,7 +311,6 @@ class DailyBFGHv(object):
               by the user.
               """
             temporal_means = []
-
             region_values = regions_instance.get_user_region()
             for region in region_values:
                 name = region['name']
@@ -344,12 +343,11 @@ class DailyBFGHv(object):
                 longitudes=xr_dataset['grid_xt']
                 num_lat = len(weights['grid_yt'])
                 num_lon = len(weights['grid_xt'])
-                total_regional_elements = num_lat * num_lon
                 value  = np.ma.masked_invalid(var_data.mean(dim='time',skipna=True))
                 temporal_means.append(value)                  
                 var_stats_instance.calculate_requested_statistics(var_data,weights,value)
-                
-            for iregion in range(num_regions):    
+               
+            for iregion in range(num_regions): 
                 for j, statistic in enumerate(self.config.get_stats()):
                        """ The second nested loop iterates through each requested 
                            statistic and regions if the user has requested geographical
@@ -358,7 +356,7 @@ class DailyBFGHv(object):
                        if statistic == 'mean':
                           themeans=var_stats_instance.weighted_averages[iregion] 
                           value=themeans 
-                         
+                       
                        elif statistic == 'variance':
                           thevariance=var_stats_instance.variances[iregion]
                           value=thevariance
