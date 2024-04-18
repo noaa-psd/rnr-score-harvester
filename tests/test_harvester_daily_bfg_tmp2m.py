@@ -110,11 +110,8 @@ def test_gridcell_variance(tolerance=0.001):
     summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
     for file_count, data_file in enumerate(BFG_PATH):
         test_rootgrp = Dataset(data_file)
-    
         summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
         test_rootgrp.close()
-        
     temporal_mean = summation / (file_count + 1)
     
     global_mean = np.ma.sum(norm_weights * temporal_mean)
@@ -135,13 +132,10 @@ def test_gridcell_min_max(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
     
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    
     summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
     for file_count, data_file in enumerate(BFG_PATH):
         test_rootgrp = Dataset(data_file)
-    
         summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
         test_rootgrp.close()
         
     temporal_mean = summation / (file_count + 1)

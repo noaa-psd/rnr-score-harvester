@@ -2,13 +2,14 @@
 
 import os
 import sys
+import xarray as xr
 from pathlib import Path 
 
 import numpy as np
+from netCDF4 import Dataset
 from datetime import datetime
 import pytest
 import yaml
-from netCDF4 import Dataset
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
@@ -63,7 +64,6 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
 """  
   
 required_vars  = ['dswrf_avetoa','ulwrf_avetoa','uswrf_avetoa']
-
 def test_gridcell_area_conservation(tolerance=0.001):
 
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
@@ -101,7 +101,7 @@ def test_cycletime():
 
 def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].longname == "Top of atmosphere net radiative energy flux"
+    assert data1[0].longname == "Top of atmosphere net radiative flux"
 
 def test_global_mean_values(tolerance=0.001):
     """The value of 10.022175263719816 is the mean value of the global means
@@ -116,77 +116,105 @@ def test_global_mean_values(tolerance=0.001):
     assert data1[0].value <= (1 + tolerance) * global_mean
     assert data1[0].value >= (1 - tolerance) * global_mean
 
-'''temporarily commenting out the following 3 failing unit tests (https://github.com/NOAA-PSL/score-hv/issues/56)
-     
 def test_global_mean_values2(tolerance=0.001):
-    """This function tests the weighted means of each of the required variables.
-       The required variables[dswrf_avetoa, ulwrf_avetoa and uswrf_avetoa].
-       The weighted means are calculated in a separate program from the
-       files in the above bfg files and then hard coded in this function for a 
-       test of what is returned from the harvester.
     """
-    data1 = harvest(VALID_CONFIG_DICT)
-    
+       The weighted_means = [351.93690539738895, 242.84720151427342, 99.06752861939572]
+       were calculated for each of the required variables in a separate python script using the
+       bfg files listed above. 
+       This function calculates the weighted mean for each of the required variables
+       from the bfg files above.  The calculated weighted mean is then
+       compared to the hard coded value of the weighted mean for that variable.
+    """
     weighted_means = [351.93690539738895, 242.84720151427342, 99.06752861939572]
     weighted_means_array   = np.array(weighted_means)
+
+    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
+                                        gridcell_area_data.variables['area'][:])
     num_vars = len(required_vars)
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'mean':
-           for ivar in range(num_vars):
-               var_weight_mean = np.float32(weighted_means_array[ivar])
-               assert var_weight_mean <= (1 + tolerance) * harvested_tuple.value[ivar+1] 
-               assert var_weight_mean >= (1 - tolerance) * harvested_tuple.value[ivar+1]
+    for ivar in range(num_vars): 
+        summation = 0.0
+        var_name = required_vars[ivar]
+        for file_count, data_file in enumerate(BFG_PATH):
+               test_rootgrp = Dataset(data_file)
+               with Dataset(data_file, 'r') as data:
+                    var_data = test_rootgrp.variables[var_name]
+                    summation += var_data[0]
+        value = summation/(file_count + 1) 
+        ivar_weighted_mean = np.ma.sum(norm_weights * value) 
+        assert ivar_weighted_mean <= (1 + tolerance) * weighted_means[ivar] 
+        assert ivar_weighted_mean >= (1 - tolerance) * weighted_means[ivar]
+    gridcell_area_data.close()
 
-def test_gridcell_min_max(tolerance=0.001):
+def test_global_min_max(tolerance=0.001):
     """
-      This function tests the minimum and maximum value 
-      of each of the required variables. 
-      required variables[dswrf_avetoa,ulwrf_avetoa and uswrf_avetoa].
-      The minimum and maximum values are calculated in a 
-      separate program from the bfg files above and then  
-      hard coded in this function for a 
-      test of what is returned from the harvester.
-    """
-
-    data1 = harvest(VALID_CONFIG_DICT)
+      The min_values = [0.0, 78.584885, 0.0] and 
+      max_values = [550.00757, 343.95752, 373.3152] were calculated for 
+      each of the required variables in a separate python script using the
+      bfg files listed above. 
+      This function gets the minimun and maximum values of the required
+      variables from the temporal means that are calculated from the 
+      bfg files above. Then the minimum and maximum values are compoared
+      to the hard coded min_values and max_values.
+      """ 
     
     min_values = [0.0, 78.584885, 0.0]
     max_values = [550.00757, 343.95752, 373.3152]
-    min_array  = np.array(min_values)
-    max_array  = np.array(max_values)
-
-    num_vars   = len(required_vars)
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'maximum':
-            for ivar in range(num_vars):
-                assert max_array[ivar] <= (1 + tolerance) * harvested_tuple.value[ivar]
-                assert max_array[ivar] >= (1 - tolerance) * harvested_tuple.value[ivar]
-        elif harvested_tuple.statistic == 'minimum':
-            for ivar in range(num_vars): 
-                assert min_array[ivar] <= (1 + tolerance) * harvested_tuple.value[ivar]
-                assert min_array[ivar] >= (1 - tolerance) * harvested_tuple.value[ivar]
-
-def test_gridcell_variance(tolerance=0.001):
-    """
-      This function tests the variance's 
-      of each of the required variables. 
-      required variables[dswrf_avetoa, ulwrf_avetoa and uswrf_avetoa].
-      The hard coded values are calculated in a 
-      separate program from the bfg files above. 
-      """
-    data1 = harvest(VALID_CONFIG_DICT)
-    variance_values = [28112.799, 1704.7006, 5749.81  ]
-    variance_array  = np.array(variance_values)
-
+    
     num_vars = len(required_vars)
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'variance':
-            for ivar in range(num_vars):
-                assert variance_array[ivar] <= (1 + tolerance) * harvested_tuple.value[ivar]
-                assert variance_array[ivar] >= (1 - tolerance) * harvested_tuple.value[ivar]
-'''
+    for ivar in range(num_vars):
+        summation = 0.0
+        var_name = required_vars[ivar]
+        for file_count, data_file in enumerate(BFG_PATH):
+            test_rootgrp = Dataset(data_file)
+            with Dataset(data_file, 'r') as data:
+                 var_data = test_rootgrp.variables[var_name]
+                 summation += var_data[0]
+        value = summation/(file_count + 1)
+        themin = np.ma.min(value)
+        themax = np.ma.max(value)
+        assert min_values[ivar] <= (1 + tolerance) * themin
+        assert min_values[ivar] >= (1 - tolerance) * themin
+        assert max_values[ivar] <= (1 + tolerance) * themax
+        assert max_values[ivar] >= (1 - tolerance) * themax
+
+def test_global_variance(tolerance=0.001):
+    """
+      The variance values [28112.799, 1704.7006, 5749.81  ] were calculated for 
+      each of the required variables in a separate python script using the
+      bfg files listed above. 
+      This function calculates the variances for each of the required variables
+      using temporal means and weighted means calculated in this function 
+      and the normalized area weights from the gridcell_area_data file.  
+      It then compares the calulated variance with
+      the hard coded variance.  The variance is calculated using the formula:
+      variance = sum_R{ w_i * (x_i - xbar)^2 },
+      where sum_R represents the summation for each value x_i over the region of
+      interest R with normalized gridcell area weights w_i and weighted mean xbar
+      """
+    variance_values = [28112.799, 1704.7006, 5749.81  ]
+
+    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
+                                        gridcell_area_data.variables['area'][:])
+    num_vars = len(required_vars)
+    for ivar in range(num_vars):
+        summation = 0.0
+        var_name = required_vars[ivar]
+        for file_count, data_file in enumerate(BFG_PATH):
+               test_rootgrp = Dataset(data_file)
+               with Dataset(data_file, 'r') as data:
+                    var_data = test_rootgrp.variables[var_name]
+                    summation += var_data[0]
+        value = summation/(file_count + 1)  
+        weighted_mean = np.ma.sum(norm_weights * value)                           
+        variance = -weighted_mean**2 + np.ma.sum( value**2 * norm_weights)
+        assert variance_values[ivar] <= (1 + tolerance) * variance 
+        assert variance_values[ivar] >= (1 - tolerance) * variance
+    gridcell_area_data.close()     
 
 def main():
+    temporal_means = []
     test_gridcell_area_conservation()
     test_harvester_get_files()
     test_variable_names()
@@ -194,9 +222,9 @@ def main():
     test_cycletime()
     test_longname()
     test_global_mean_values()
-    #test_global_mean_values2()
-    #test_gridcell_min_max()
-    #test_gridcell_variance()
+    test_global_mean_values2()
+    test_global_min_max()
+    test_global_variance()
 
 if __name__=='__main__':
     main()
