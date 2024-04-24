@@ -8,6 +8,7 @@ geographic regions.
 import sys,os
 import numpy as np
 import xarray as xr
+import math
 from datetime import datetime
 import pytest
 import pdb
@@ -24,7 +25,7 @@ DEFAULT_EAST_LON = 0.0
 DEFAULT_WEST_LON = 360.0
 
 class GeoRegions:
-    def __init__(self):
+    def __init__(self,latitudes,longitudes):
         """
           Parameters:
           - new_name: Name of the new region.
@@ -38,6 +39,8 @@ class GeoRegions:
         self.max_lat=[]
         self.east_lon=[]
         self.west_lon=[]
+        self.latitudes=latitudes
+        self.longitudes=longitudes
 
     def add_user_region(self, new_name, new_min_lat, new_max_lat, \
                         new_east_lon, new_west_lon):
@@ -70,11 +73,6 @@ class GeoRegions:
                  f'max_lat: {new_max_lat}'
            raise ValueError(msg)        
          
-        if new_east_lon > new_west_lon:
-            msg = f'west longitude must be greater then east_longitude ' \
-                  f'west_lon: {new_west_lon}, east_lon: {new_east_lon}'
-            raise ValueError(msg)
-
         if new_east_lon < 0.0 or new_east_lon > 360.:
            msg = f'east longitude must be greater than 0.0 and less than 360. ' \
                  f'east_lon: {new_east_lon}'
@@ -91,17 +89,38 @@ class GeoRegions:
         self.east_lon.append(new_east_lon)
         self.west_lon.append(new_west_lon)
 
-    def get_user_region(self):
-        user_regions = []
+    def get_region_coordinates(self):
+        latitudes = self.latitudes
+        longitudes = self.longitudes
+        num_lon = len(longitudes)
+        num_lat = len(latitudes)
+        region_indices = []
         for i in range(len(self.name)):
-            region_info = {
-                'name': self.name[i],
-                'min_lat': self.min_lat[i],
-                'max_lat': self.max_lat[i],
-                'east_lon': self.east_lon[i],
-                'west_lon': self.west_lon[i],
-            }
-            user_regions.append(region_info)
-        return user_regions
-
+            min_lat = self.min_lat[i]
+            max_lat = self.max_lat[i]
+            east_lon = self.east_lon[i]
+            west_lon = self.west_lon[i]
+            # Find latitude indices within the region
+            latitude_indices=[index for index, lat in enumerate(latitudes) if min_lat <= lat <= max_lat]
+            if latitude_indices:
+               lat_start_index = latitude_indices[0]
+               lat_end_index = latitude_indices[-1]
+            else:
+               msg=f"No latitude values found within the specified range of {min_lat} and {max_lat}."
+               raise KeyError(msg)
+ 
+            """Find longitude indices within the region. We need to include values of east and west
+               that include the prime meridian.
+               """
+            ieast = (east_lon * num_lon)/360
+            jwest = (west_lon * num_lon)/360
+            east_index = math.floor(ieast)
+            west_index = math.floor(jwest)
+            if east_index > west_index:
+               temp = east_index
+               east_index = west_index
+               west_index = temp 
+            region_indices.append((lat_start_index, lat_end_index, east_index, west_index))
         
+        return region_indices
+
