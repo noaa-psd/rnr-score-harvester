@@ -28,7 +28,7 @@ statistics but are in development and are currently not fully supported.
 VALID_VARIABLES  = (
                     #'icetk', # sea ice thickness (m)
                     #'lhtfl_ave', # surface latent heat flux (W m^-2)
-                    'netrf_avetoa',#top of atmoshere net radiative flux (SW and LW) (W/m**2)
+                    'netrf_avetoa',#top of atmosphere net radiative flux (SW and LW) (W/m**2)
                     'netR',#surface energy balance (W/m**2)
                     'prateb_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
@@ -241,7 +241,7 @@ class DailyBFGHv(object):
         total_regional_elements = total_original_elements
         check_weights(gridcell_area_weights,total_original_elements,total_regional_elements) 
         
-        regions_instance=GeoRegions()
+        regions_instance=GeoRegions(latitudes,longitudes)
         user_regions = self.config.region
         if user_regions:
            """
@@ -311,73 +311,46 @@ class DailyBFGHv(object):
               by the user.
               """
             temporal_means = []
-            region_values = regions_instance.get_user_region()
-            for region in region_values:
-                name = region['name']
-                min_lat = region['min_lat']
-                max_lat = region['max_lat']
-                east_lon = region['east_lon']
-                west_lon = region['west_lon']
-                desired_latitude_indices=[index for index, lat in enumerate(latitudes) if min_lat <= lat <= max_lat]
-                if desired_latitude_indices:
-                   lat_start_index=desired_latitude_indices[0]
-                   lat_end_index=desired_latitude_indices[-1]
-                else:
-                   msg=f"No latitude values found within the specified range of {min_lat} and {max_lat}."
-                   raise KeyError(msg)
-
-                desired_longitude_indices=[index for index, lon in enumerate(longitudes) if east_lon <= lon <= west_lon]
-                if desired_longitude_indices:
-                   east_start_index=desired_longitude_indices[0]
-                   west_end_index=desired_longitude_indices[-1]
-                else:
-                   msg=f"No longitude values found within the specified range of {east_lon} and {west_lon}."
-                   raise KeyError(msg) 
-
+            region_index_values = regions_instance.get_region_coordinates()
+            for ireg in region_index_values:
+                lat_start_index, lat_end_index, east_index, west_index = ireg 
                 var_data=variable_data.isel(time=slice(None), \
                                             grid_yt=slice(lat_start_index,lat_end_index+1), \
-                                            grid_xt=slice(east_start_index,west_end_index))
+                                            grid_xt=slice(east_index,west_index))
+                
                 weights=gridcell_area_data['area'].isel(grid_yt=slice(lat_start_index,lat_end_index + 1), \
-                                                        grid_xt=slice(east_start_index, west_end_index))
-                latitudes=xr_dataset['grid_yt']
-                longitudes=xr_dataset['grid_xt']
-                num_lat = len(weights['grid_yt'])
-                num_lon = len(weights['grid_xt'])
+                                                        grid_xt=slice(east_index, west_index))
                 value  = np.ma.masked_invalid(var_data.mean(dim='time',skipna=True))
-                temporal_means.append(value)                  
+                temporal_means.append(value)
                 var_stats_instance.calculate_requested_statistics(var_data,weights,value)
-               
-            for iregion in range(num_regions): 
-                for j, statistic in enumerate(self.config.get_stats()):
-                       """ The second nested loop iterates through each requested 
-                           statistic and regions if the user has requested geographical
-                           regions..
-                       """
-                       if statistic == 'mean':
-                          themeans=var_stats_instance.weighted_averages[iregion] 
-                          value=themeans 
-                       
-                       elif statistic == 'variance':
-                          thevariance=var_stats_instance.variances[iregion]
-                          value=thevariance
+            
 
-                       elif statistic == 'maximum':
-                           themaximum=var_stats_instance.maximum[iregion]
-                           value=themaximum
-
-                       elif statistic == 'minimum':
-                           theminimum=var_stats_instance.minimum[iregion]
-                           value=theminimum
-
-                       harvested_data.append(HarvestedData(
-                                            self.config.harvest_filenames,
-                                            statistic, 
-                                            variable,
-                                            np.float32(value),
-                                            units,
-                                            dt.fromisoformat(median_cftime.isoformat()),
-                                            longname,
-                                            region))
+            for j, statistic in enumerate(self.config.get_stats()):
+                """ The second nested loop iterates through each requested 
+                    statistic and regions if the user has requested geographical
+                    regions..
+                    """
+                if statistic == 'mean':
+                    value = var_stats_instance.weighted_averages 
+                    
+                elif statistic == 'variance':
+                    value = var_stats_instance.variances
+                
+                elif statistic == 'maximum':
+                    value = var_stats_instance.maximum
+                    
+                elif statistic == 'minimum':
+                    value = var_stats_instance.minimum
+                    
+                harvested_data.append(HarvestedData(
+                                      self.config.harvest_filenames,
+                                       statistic, 
+                                       variable,
+                                       np.float32(value),
+                                       units,
+                                       dt.fromisoformat(median_cftime.isoformat()),
+                                       longname,
+                                       user_regions))
        
         gridcell_area_data.close()
         xr_dataset.close()
