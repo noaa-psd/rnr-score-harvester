@@ -43,10 +43,10 @@ class var_stats:
            Return:Nothing is returned.
            """
         for stat in self.stats:
-            if stat=='mean':
-               weighted_average=self.calculate_weighted_average(var_data,gridcell_area_weights,temporal_mean) 
+            if stat=="mean":
+               self.calculate_weighted_average(var_data,gridcell_area_weights,temporal_mean) 
             if stat=='variance':
-               self.calculate_var_variance(gridcell_area_weights,temporal_mean,weighted_average) 
+               self.calculate_var_variance(gridcell_area_weights,temporal_mean) 
             if stat=='minimum':
                self.find_minimum_value(temporal_mean)               
             if stat=='maximum':
@@ -64,13 +64,11 @@ class var_stats:
                                  Located in the data area of score-hv.
            temporal_mean:the temporal means array that is calculated in
                          the calling function.
-           Return:weighted_average
            """
         value = np.ma.average(temporal_mean,weights=gridcell_area_weights)
         self.weighted_averages.append(value)
-        return value 
 
-    def calculate_var_variance(self,gridcell_area_weights,temporal_mean,weighted_average):
+    def calculate_var_variance(self,gridcell_area_weights,temporal_mean):
         """
           This function returns the gridcell weighted variance of the requested variables using
           the following formula:
@@ -83,13 +81,11 @@ class var_stats:
                                  Located in the data area of score-hv.
            temporal_mean:the temporal means array that is calculated in
                          the calling function. 
-           weighted_average: the weighted averages are calculated in the 
-                             function calculate_weighted_average which
-                             is in this python script.
           """
-        norm_weights=gridcell_area_weights/np.sum(gridcell_area_weights)
-
-        temporal_means_array=np.array(temporal_mean)
+        norm_weights = gridcell_area_weights/np.sum(gridcell_area_weights)
+        
+        weighted_average = np.ma.average(temporal_mean,weights=gridcell_area_weights)
+        temporal_means_array = np.array(temporal_mean)
         value=-weighted_average**2 + np.ma.sum( temporal_means_array**2 * norm_weights)
         self.variances.append(value)
 
