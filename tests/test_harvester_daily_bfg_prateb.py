@@ -45,7 +45,8 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                                   ['north_hemis', 20.0, 60.0, 0.0, 360.0],
                                   ['south_hemis', -60.0, -20.0, 0.0, 360.0],
                                   ['conus',24.0, 49.0, 235.0, 293.0],
-                                  ['global',-90.0, 90.0, 0.0, 360.0]
+                                  ['global',-90.0, 90.0, 0.0, 360.0],
+                                  ['prime_meridian',-90,90,130,90],
                                  ]}
 
 def test_gridcell_area_conservation(tolerance=0.001):
@@ -81,48 +82,49 @@ def test_global_mean_values_offline(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
     if 'region' in str(data1[0]):
         global_means = [7.04825819962097e-05, 2.8965191456702544e-05,2.2748022739982528e-05, \
-                        2.2748022739982528e-05,3.1183886948414354e-05]
+                        2.2748022739982528e-05,3.1183886948414354e-05,2.3081037860291425e-05]
     iregion = 0 
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'mean':
-           assert global_means[iregion] <= (1 + tolerance) * harvested_tuple.value
-           assert global_means[iregion] <= (1 + tolerance) * harvested_tuple.value
+           assert global_means[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
+           assert global_means[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
            iregion = iregion + 1
 
 def test_gridcell_variance(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
+    
     if 'region' in str(data1[0]):
         variances = [1.48348705705598e-08, 4.3899346663891055e-09, 2.452054630702822e-09, \
-                 4.47877939776161e-09, 5.7414012487690275e-09]
+                 4.47877939776161e-09, 5.7414012487690275e-09,3.4993706919644485e-09]
     iregion = 0    
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'variance': 
-           assert variances[iregion] <= (1 + tolerance) * harvested_tuple.value
-           assert variances[iregion] <= (1 + tolerance) * harvested_tuple.value
+           assert variances[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
+           assert variances[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
            iregion = iregion + 1
 
 def test_gridcell_min(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
     if 'region' in str(data1[0]):    
-        min_values = [ 0.0, 0.0, 0.0, 0.0, 0.0]
+        min_values = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
     iregion = 0    
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'minimum': 
-           assert min_values[iregion] <= (1 + tolerance) * harvested_tuple.value
-           assert min_values[iregion] <= (1 + tolerance) * harvested_tuple.value
+           assert min_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
+           assert min_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
            iregion = iregion + 1
 
 def test_gridcell_max(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
     if 'region' in str(data1[0]):
-        max_values = [0.0032889172, 0.002300344, 0.0009843283, 0.00071415555, 0.004360093]
+        max_values = [0.0032889172, 0.002300344, 0.0009843283, 0.00071415555, 0.004360093, 0.0022887615]
 
     iregion = 0    
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'maximum': 
-           assert max_values[iregion] <= (1 + tolerance) * harvested_tuple.value
-           assert max_values[iregion] <= (1 + tolerance) * harvested_tuple.value
+           assert max_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
+           assert max_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
            iregion = iregion + 1
 
      
