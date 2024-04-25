@@ -14,14 +14,14 @@ from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
 from score_hv.harvesters.innov_netcdf import Region, InnovStatsCfg
 
-TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_surf_energy_balance_control.nc',
-                        'bfg_1994010106_fhr06_surf_energy_balance_control.nc',
-                        'bfg_1994010106_fhr09_surf_energy_balance_control.nc',
-                        'bfg_1994010112_fhr06_surf_energy_balance_control.nc',
-                        'bfg_1994010112_fhr09_surf_energy_balance_control.nc',
-                        'bfg_1994010118_fhr06_surf_energy_balance_control.nc',
-                        'bfg_1994010118_fhr09_surf_energy_balance_control.nc',
-                        'bfg_1994010200_fhr06_surf_energy_balance_control.nc']
+TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_fluxes_control.nc',
+                        'bfg_1994010106_fhr06_fluxes_control.nc',
+                        'bfg_1994010106_fhr09_fluxes_control.nc',
+                        'bfg_1994010112_fhr06_fluxes_control.nc',
+                        'bfg_1994010112_fhr09_fluxes_control.nc',
+                        'bfg_1994010118_fhr06_fluxes_control.nc',
+                        'bfg_1994010118_fhr09_fluxes_control.nc',
+                        'bfg_1994010200_fhr06_fluxes_control.nc']
 
 DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'data')
 GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
@@ -53,14 +53,14 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
        lhtfl_ave : surface latent heat flux
 
   These required variables are located in the eight bfg foreacast files
-        bfg_1994010100_fhr09_surf_energy_balance_control.nc
-        bfg_1994010106_fhr06_surf_energy_balance_control.nc
-        bfg_1994010106_fhr09_surf_energy_balance_control.nc
-        bfg_1994010112_fhr06_surf_energy_balance_control.nc
-        bfg_1994010112_fhr09_surf_energy_balance_control.nc
-        bfg_1994010118_fhr06_surf_energy_balance_control.nc
-        bfg_1994010118_fhr09_surf_energy_balance_control.nc
-        bfg_1994010200_fhr06_surf_energy_balance_control.nc
+        bfg_1994010100_fhr09_fluxes_control.nc
+        bfg_1994010106_fhr06_fluxes_control.nc
+        bfg_1994010106_fhr09_fluxes_control.nc
+        bfg_1994010112_fhr06_fluxes_control.nc
+        bfg_1994010112_fhr09_fluxes_control.nc
+        bfg_1994010118_fhr06_fluxes_control.nc
+        bfg_1994010118_fhr09_fluxes_control.nc
+        bfg_1994010200_fhr06_fluxes_control.nc
   The statistics asked for in the VALID_CONFIG_DICT are calculated in
   the harvester daily_bfg.py. 
   These required variables is a global python list: 
