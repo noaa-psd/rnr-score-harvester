@@ -15,14 +15,14 @@ from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
 from score_hv.harvesters.innov_netcdf import Region, InnovStatsCfg
 
-TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_lhtfl_control.nc',
-                        'bfg_1994010106_fhr06_lhtfl_control.nc',
-                        'bfg_1994010106_fhr09_lhtfl_control.nc',
-                        'bfg_1994010112_fhr06_lhtfl_control.nc',
-                        'bfg_1994010112_fhr09_lhtfl_control.nc',
-                        'bfg_1994010118_fhr06_lhtfl_control.nc',
-                        'bfg_1994010118_fhr09_lhtfl_control.nc',
-                        'bfg_1994010200_fhr06_lhtfl_control.nc']
+TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_fluxes_control.nc',
+                        'bfg_1994010106_fhr06_fluxes_control.nc',
+                        'bfg_1994010106_fhr09_fluxes_control.nc',
+                        'bfg_1994010112_fhr06_fluxes_control.nc',
+                        'bfg_1994010112_fhr09_fluxes_control.nc',
+                        'bfg_1994010118_fhr06_fluxes_control.nc',
+                        'bfg_1994010118_fhr09_fluxes_control.nc',
+                        'bfg_1994010200_fhr06_fluxes_control.nc']
 
 DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'data')
 GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
@@ -44,10 +44,14 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
 def test_gridcell_area_conservation(tolerance=0.001):
 
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    
     assert gridcell_area_data['area'].units == 'steradian'
+    
     sum_gridcell_area = np.sum(gridcell_area_data.variables['area'])
+    
     assert sum_gridcell_area < (1 + tolerance) * 4 * np.pi
     assert sum_gridcell_area > (1 - tolerance) * 4 * np.pi
+    
     gridcell_area_data.close()
 
 def test_variable_names():
@@ -58,14 +62,14 @@ def test_global_mean_values(tolerance=0.001):
     """The value of 3.117e-05 is the mean value of the global means 
     calculated from eight forecast files:
         
-        bfg_1994010100_fhr09_lhtfl_control.nc
-        bfg_1994010106_fhr06_lhtfl_control.nc
-        bfg_1994010106_fhr09_lhtfl_control.nc
-        bfg_1994010112_fhr06_lhtfl_control.nc
-        bfg_1994010112_fhr09_lhtfl_control.nc
-        bfg_1994010118_fhr06_lhtfl_control.nc
-        bfg_1994010118_fhr09_lhtfl_control.nc
-        bfg_1994010200_fhr06_lhtfl_control.nc
+        bfg_1994010100_fhr09_fluxes_control.nc
+        bfg_1994010106_fhr06_fluxes_control.nc
+        bfg_1994010106_fhr09_fluxes_control.nc
+        bfg_1994010112_fhr06_fluxes_control.nc
+        bfg_1994010112_fhr09_fluxes_control.nc
+        bfg_1994010118_fhr06_fluxes_control.nc
+        bfg_1994010118_fhr09_fluxes_control.nc
+        bfg_1994010200_fhr06_fluxes_control.nc
         
     When averaged together, these files represent a 24 hour mean. The 
     average value hard-coded in this test was calculated from 
@@ -79,7 +83,7 @@ def test_global_mean_values(tolerance=0.001):
 def test_global_mean_values2(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the expected value
-    of the provided variable.  In this case lhtfl_ave.
+    of the provided variable.  In this case fluxes_ave.
     """
     data1 = harvest(VALID_CONFIG_DICT)
     
@@ -90,7 +94,9 @@ def test_global_mean_values2(tolerance=0.001):
     summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
     for file_count, data_file in enumerate(BFG_PATH):
         test_rootgrp = Dataset(data_file)
+    
         summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
+        
         test_rootgrp.close()
         
     temporal_mean = summation / (file_count + 1)
@@ -106,7 +112,7 @@ def test_global_mean_values2(tolerance=0.001):
 def test_gridcell_variance(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the variance
-    of the provided variable.  In this case lhtfl_ave.
+    of the provided variable.  In this case fluxes_ave.
     """
     data1 = harvest(VALID_CONFIG_DICT)
     
@@ -117,8 +123,11 @@ def test_gridcell_variance(tolerance=0.001):
     summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
     for file_count, data_file in enumerate(BFG_PATH):
         test_rootgrp = Dataset(data_file)
+    
         summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
+        
         test_rootgrp.close()
+        
     temporal_mean = summation / (file_count + 1)
     
     global_mean = np.ma.sum(norm_weights * temporal_mean)
@@ -134,14 +143,18 @@ def test_gridcell_variance(tolerance=0.001):
 def test_gridcell_min_max(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the maximum
-    of the provided variable.  In this case lhtfl_ave.
+    of the provided variable.  In this case fluxes_ave.
     """
     data1 = harvest(VALID_CONFIG_DICT)
+    
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+    
     summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
     for file_count, data_file in enumerate(BFG_PATH):
         test_rootgrp = Dataset(data_file)
+    
         summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
+         
         test_rootgrp.close()
         
     temporal_mean = summation / (file_count + 1)
@@ -198,7 +211,7 @@ def test_longname():
     var_longname = "surface latent heat flux"
     assert data1[0].longname == var_longname
 
-def test_lhtfl_ave_harvester():
+def test_fluxes_ave_harvester():
     data1 = harvest(VALID_CONFIG_DICT)  
     assert type(data1) is list
     assert len(data1) > 0
@@ -206,7 +219,7 @@ def test_lhtfl_ave_harvester():
 
 def main():
     test_gridcell_area_conservation()
-    test_lhtfl_ave_harvester()
+    test_fluxes_ave_harvester()
     test_variable_names()
     test_units()
     test_global_mean_values()
