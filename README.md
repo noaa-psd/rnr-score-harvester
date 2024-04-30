@@ -1,12 +1,35 @@
-# Score-HV 
-Python package used to harvester data from provided files. 
+#score-hv
+Python package used to harvest metrics from reanalysis data
 
-This repositority is a standalone project but is also utilized as a part of the larger score-suite in conjunction with score-db and score-monitoring.
+This repositority is a standalone Python package that can be used as a part of
+a larger workflow (e.g., with the score-db and score-monitoring repositories)
 
-## Harvesting with score-hv
-score-hv takes in a yaml or dictionary which specifies which harvester to use, files to harvest from, and if necessary details for that harvester of which specific data to harvest such as which variables. 
+## Setup and installation
+The repository can be downloaded using git:
+`git clone https://github.com/NOAA-PSL/score-hv.git`
 
-Example input dictionary: 
+For testing and development, we recommend creating a new python environment 
+(e.g., using [mamba](https://mamba.readthedocs.io/en/latest/index.html)). To 
+install the required dependencies into a new environement using the micromamba 
+command-line interface, run the following after installing mamba/micromamba
+`micromamba create -f environment.yml`
+
+Depending on your use case, install score-hv using one of three methods using 
+(pip)[https://pip.pypa.io/en/stable/],
+`pip install .` # default installation into active environment
+`pip install -e .` # editable installation into active enviroment, useful for development
+`pip install -t [TARGET_DIR] --upgrade .` # target installaiton into TARGET_DIR, useful for deploying for cylc workflows (see https://cylc.github.io/cylc-doc/stable/html/tutorial/runtime/introduction.html#id3)
+
+Verify the installation by running the unit test suite. There are no expected test failures.
+`pytest tests`
+
+## Harvesting metric data with score-hv
+score-hv takes in a yaml or dictionary which specifies the harvester to call, 
+input data files and other inputs to the harvester (such as variables and
+statistics to harvest)
+
+For example, the following dictionary could be used to request the global, gridcell area weighted statistics for the temporally (in this case daily)
+averaged upwelling longwave radiation from the given netcdf files.
 ```sh
 {'harvester_name': 'daily_bfg',
     'filenames' : ['/filepath/tmp2m_bfg_2023032100_fhr09_control.nc',
@@ -21,9 +44,11 @@ Example input dictionary:
     'variable': ['ulwrf_avetoa']}
 ```
 
-All harvester calls must provide a harvester_name and filenames. The options for harester_name are the available harvesters below. Each harvester can have additional input options or requirements. 
+A request dictionary must provide the harvester_name and filenames. Supported 
+harester_name(s) are provided below, and each harvester may have additional 
+input options or requirements. 
 
-## Available Harvesters
+## Supported harvesters
 
 ### obs_info_log
 observation information for pressure, specific humidity, temperature, height, wind components, precipitable h2o, and relative humidity
