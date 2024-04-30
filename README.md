@@ -1,26 +1,32 @@
-#score-hv
-Python package used to harvest metrics from reanalysis data
-
+# score-hv/README.md
+## Summary
+Python package used to harvest metrics from reanalysis data.
 This repositority is a standalone Python package that can be used as a part of
-a larger workflow (e.g., with the score-db and score-monitoring repositories)
+a larger workflow (e.g., with the score-db and score-monitoring repositories).
 
 ## Setup and installation
 The repository can be downloaded using git:
+
 `git clone https://github.com/NOAA-PSL/score-hv.git`
 
 For testing and development, we recommend creating a new python environment 
 (e.g., using [mamba](https://mamba.readthedocs.io/en/latest/index.html)). To 
-install the required dependencies into a new environement using the micromamba 
-command-line interface, run the following after installing mamba/micromamba
-`micromamba create -f environment.yml`
+install the required dependencies into a new environment using the micromamba 
+command-line interface, run the following after installing mamba/micromamba:
+
+`micromamba create -f environment.yml; micromamba activate score-hv_test_env`
 
 Depending on your use case, install score-hv using one of three methods using 
 (pip)[https://pip.pypa.io/en/stable/],
-`pip install .` # default installation into active environment
-`pip install -e .` # editable installation into active enviroment, useful for development
-`pip install -t [TARGET_DIR] --upgrade .` # target installaiton into TARGET_DIR, useful for deploying for cylc workflows (see https://cylc.github.io/cylc-doc/stable/html/tutorial/runtime/introduction.html#id3)
+
+`pip install . # default installation into active environment`
+
+`pip install -e . # editable installation into active enviroment, useful for development`
+
+`pip install -t [TARGET_DIR] --upgrade . # target installaiton into TARGET_DIR, useful for deploying for cylc workflows (see https://cylc.github.io/cylc-doc/stable/html/tutorial/runtime/introduction.html#id3)`
 
 Verify the installation by running the unit test suite. There are no expected test failures.
+
 `pytest tests`
 
 ## Harvesting metric data with score-hv
