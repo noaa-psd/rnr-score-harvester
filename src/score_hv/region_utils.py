@@ -102,6 +102,10 @@ class GeoRegions:
             west_lon = self.west_lon[i]
             # Find latitude indices within the region
             latitude_indices=[index for index, lat in enumerate(latitudes) if min_lat <= lat <= max_lat]
+            """
+              The if statement tests to make sure the list,latitude_indices, is not empty.  
+              if the list is empty it returns false.  If it is not empty it returns true.
+              """
             if latitude_indices:
                lat_start_index = latitude_indices[0]
                lat_end_index = latitude_indices[-1]
