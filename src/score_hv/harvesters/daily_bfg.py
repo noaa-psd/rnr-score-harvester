@@ -3,17 +3,18 @@
 import os
 import sys
 from pathlib import Path
-
-import numpy as np
-from netCDF4 import MFDataset
-import xarray as xr
-from datetime import datetime as dt
-import cftime
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
+from datetime import datetime as dt
+
+import xarray as xr
+import numpy as np
+import cftime
+from netCDF4 import MFDataset
 
 from score_hv.config_base import ConfigInterface
+from score_hv import stats_utils
 
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
@@ -24,6 +25,7 @@ statistics but are in development and are currently not fully supported.
 """
 VALID_VARIABLES  = (#'icetk', # sea ice thickness (m)
                     #'lhtfl_ave', # surface latent heat flux (W m^-2)
+                    'netrf_avetoa', # top of atmosphere net radiation flux (SW and LW) (W m^-2)
                     #'prate_ave', # surface precip rate (mm weq. s^-1)
                     'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
@@ -45,8 +47,9 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'units',
                                              'mediantime',
                                              'longname'])
+
 def get_gridcell_area_data_path():
-    return os.path.join(Path(__file__).parent.parent.parent.parent.resolve(),
+    return os.path.join(Path(__file__).parent.parent.resolve(),
                         'data', 'gridcell-area' + 
                         '_noaa-ufs-gefsv13replay-pds' + 
                         '_bfg_control_1536x768_20231116.nc')
@@ -117,7 +120,7 @@ class DailyBFGHv(object):
                   returns a list of tuples containing specific data
     """
     config: DailyBFGConfig = field(default_factory=DailyBFGConfig)
-    
+     
     def get_data(self):
         """ Harvests requested statistics and variables from background 
             forecast data and returns harvested_data, a list of HarvestData 
@@ -138,10 +141,9 @@ class DailyBFGHv(object):
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
-    
         gridcell_area_data = xr.open_dataset(get_gridcell_area_data_path())
-        gridcell_area_weights = (gridcell_area_data.variables['area'])
-        
+        gridcell_area_weights = gridcell_area_data.variables['area']
+
         temporal_endpoints = np.array([cftime.date2num(time,
             'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
         
@@ -156,27 +158,63 @@ class DailyBFGHv(object):
         else:
             median_cftime = cftime.num2date(np.median(temporal_endpoints),
                                             'hours since 1951-01-01 00:00:00')
-        
+
         for i, variable in enumerate(self.config.get_variables()):
-            """ The first nested loop iterates through each requested variable
+            """ The first nested loop iterates through each requested variable.
             """
-            variable_data = xr_dataset[variable]
-            temporal_means = np.ma.masked_invalid(variable_data.mean(dim='time',
-                                                                   skipna=True))
-            if 'long_name' in variable_data.attrs:
-                longname = variable_data.attrs['long_name']
+            if variable == 'netrf_avetoa': 
+                """The variable name netrf_avetoa referes to the top of the 
+                atmosphere (TOA) net radiative energy flux. Here, functions 
+                from the stats_utils.py file are called to calculate statistics 
+                for the required component variables. The TOA net energy flux
+                is defined as the following:
+                
+                netrf_avetoa = dswrf_avetoa - uswrf_avetoa - ulwrf_avetoa,
+                
+                where dswrf_avetoa, uswrf_avetoa, ulwrf_avetoa are the
+                corresponding mean TOA downward shortwave, upward shortwave and
+                upward longwave radiation fluxes, respectively.
+                """
+                longname = "Top of atmosphere net radiative energy flux"
+                units = "W/m**2"
+                
+                try:
+                    temporal_means = (
+                        np.ma.masked_invalid(xr_dataset['dswrf_avetoa'].mean(
+                                                                dim='time',
+                                                                skipna=True)) - 
+                        np.ma.masked_invalid(xr_dataset['uswrf_avetoa'].mean(
+                                                                dim='time',
+                                                                skipna=True)) - 
+                        np.ma.masked_invalid(xr_dataset['ulwrf_avetoa'].mean(
+                                                                dim='time',
+                                                                skipna=True)))
+                except KeyError as err:
+                    msg = (f'{xr_dataset.data_vars} '
+                           'do not include all '
+                           'variables needed to calculate TOA net '
+                           'radiative energy flux '
+                           '("dswrf_avetoa," "uswrf_avetoa" and '
+                           '"ulwrf_avetoa")')
+                    raise KeyError(msg) from err
+                                                                
             else:
-                longname = "None"
-            if 'units' in variable_data.attrs:
-                units = variable_data.attrs['units']
-            else:
-                units = "None"
+                variable_data = xr_dataset[variable]
+                if 'long_name' in variable_data.attrs:
+                    longname = variable_data.attrs['long_name']
+                else:
+                    longname = "None"
+                if 'units' in variable_data.attrs:
+                    units = variable_data.attrs['units']
+                else:
+                    units = "None"
+                
+                temporal_means = np.ma.masked_invalid(
+                    variable_data.mean(dim='time',skipna=True))
             
-            expected_value, sumweights = np.ma.average(temporal_means,
-                                                  weights=gridcell_area_weights,
-                                                  returned=True)
-            assert sumweights >= 0.999 * 4. * np.pi
-            assert sumweights <= 1.001 * 4. * np.pi
+            expected_value = stats_utils.area_weighted_mean(
+                                               temporal_means,
+                                               gridcell_area_weights)
             
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
@@ -184,13 +222,11 @@ class DailyBFGHv(object):
                 """
                 if statistic == 'mean':
                     value = expected_value
-                
                 elif statistic == 'variance':
-                    value = -expected_value**2 + np.ma.sum(
-                                                   temporal_means**2 * 
-                                                   (gridcell_area_weights / 
-                                                   gridcell_area_weights.sum()))
-                
+                    value = stats_utils.area_weighted_variance(
+                                                temporal_means,
+                                                gridcell_area_weights,        
+                                                expected_value=expected_value)
                 elif statistic == 'maximum':
                     value = np.ma.max(temporal_means)
                 
