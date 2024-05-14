@@ -12,8 +12,18 @@ from dataclasses import field
 from score_hv.config_base import ConfigInterface
 
 HARVESTER_NAME = 'gsi_radiance_obs_type'
+N_BIAS_CORR_COEF = 12
 
-VALID_VARIABLES = ()
+VALID_VARIABLES = (
+    'nobs_used', # number of obs used in GSI analysis
+    'nobs_tossed', # number of obs tossed by gross check
+    'variance',
+    'bias_pre_corr', # observation minus guess before bias correction
+    'bias_post_corr', # observation minus guess after bias correction
+    'penalty', # penalty contribution
+    'sqrt_bias', # square root of (o-g with bias correction)**2 (?)
+    'std' # standard deviation
+)
 
 VALID_STATISTICS = (
     'penalty' # contribution to cost function
@@ -34,17 +44,9 @@ VALID_STATISTICS = (
     'qc7', # number of obs whose qc criteria has been adjusted by qc method 1 
 )
 
-VALID_DATA_TYPES = ('satinfo_channels',
-                    'channel_stats',
-                    'radiance_observation_types',
-                    'observation_type_summary',
-                    'observation_totals')
-
-
-
 SatinfoChannel = namedtuple(
     'SatinfoChannel', [
-        'cycletime',
+        'datetime',
         'name',
         'chan',
         'var',
@@ -62,8 +64,8 @@ SatinfoChannel = namedtuple(
 
 SatinfoChannelStats = namedtuple(
     'SatinfoChannelStats', [
-        'cycletime',
-        'gsi_stage',
+        'datetime',
+        'iteration',
         'series_number', # series number of the channel in satinfo file
         'channel', # channel number for certain radiance observation type
         'observation_type', # radiance observation type (e.g., hirs2_tirosn)
