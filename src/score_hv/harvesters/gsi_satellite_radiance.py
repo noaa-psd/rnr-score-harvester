@@ -140,9 +140,13 @@ class SatinfoChannelHv(object):
         
         returns a list of SatinfoStat tuples
         """
-        self.channels = list()# iterate by channel
+        self.channels = dict() # iterate by series_number
         self.channel_stats = dict() # iterate by GSI stage
+        
+        self.obs_type_channels = dict() # iterate by observation type
+        self.obs_type_series_numbers = dict() # iterate by observation type
         self.satinfo_stats = list() # iterate by observation type
+        
         
         # get the datetime from the input file name
         self.datetime = datetime.strptime(
@@ -152,22 +156,65 @@ class SatinfoChannelHv(object):
         with open(self.config.harvest_filename, encoding="utf-8") as f:
             self.lines = list(f)
             
-        self.parse_fit_file()
+        self.parse_fit_file()           
         
-    ==============================================
-    TODO: Loop over self.channel_stats and self.channels, format and append 
-    data to self.satinfo_stats
-    ==============================================            
+        for obs_type, series_num_list in self.obs_type_series_numbers.items():
+            for var in self.config.vars_to_harvest:            
+                
+                values_by_channel = list()
+                for channel_index, series_number in enumerate(series_num_list):
+                    """return data usage info (by channel)
+                    """
+                    assert obs_type == self.channels[series_number][
+                                           'observation_type']
+                    assert self.obs_type_channels[obs_type][
+                               channel_index] == self.channels[series_number][
+                                                     'channel']
+                    values_by_channel.append(
+                        self.channels[series_number]['data_usage_dict'][var]
+                    )
+                    
+                self.satinfo_stats.append(SatinfoStat(
+                    self.datetime,
+                    None,
+                    obs_type,
+                    series_num_list,
+                    self.obs_type_channels[obs_type],
+                    var, # name of statistic
+                    values_by_channel,
+                    None
+                    )
+                )
         
-        self.satinfo_stats.append(SatinfoStat(
-                self.datetime,
-                self.gsi_stage,
-                series_numbers', # series numbers of the channels in satinfo file
-        'channels', # channel numbers for certain radiance observation type
-        'observation_type', # radiance observation type (e.g., hirs2_tirosn)
-        'values_by_channel',
-        'longnames'
-=======================================================================
+        for obs_type, series_num_list in self.obs_type_series_numbers.items():
+            for stat in self.config.stats_to_harvest:
+                values_by_channel = list()
+                longnames = list()
+                
+                for gsi_stage in self.channel_stats.keys():
+                    for channel_index, series_number in enumerate(
+                                                          series_num_list):
+                        """return stats by channel
+                        """
+                        stats_dict = self.channel_stats[gsi_stage][
+                                                            series_number][stat]
+                        assert obs_type == stats_dict['observation_type']
+                        assert self.obs_type_channels[obs_type][
+                            channel_index] == stat_dict['channel_number']
+                        
+                        values_by_channel.append(stats_dict['value'])
+                        longnames.append(stats_dict['longname'])
+                    
+                    self.satinfo_stats.append(SatinfoStat(
+                        self.datetime,
+                        gsi_stage,
+                        obs_type,
+                        series_num_list,
+                        self.obs_type_channels[obs_type],
+                        stat,
+                        values_by_channel,
+                        longnames
+                    ))
         
         return self.satinfo_stats
 
@@ -175,15 +222,16 @@ class SatinfoChannelHv(object):
         """iterate through the requested statistics and extract relevant data
         """
         series_number = int(line_parts[0]) # from satinfo file, index from 1 
-        channel_index = series_number - 1 # from self.channels, index from 0
+        #channel_index = series_number - 1 # from self.channels, index from 0
         channel_number = int(line_parts[1])
         observation_type = line_parts[2]
         
         # make sure we have the correct channel
-        assert self.channels[channel_index].series_number==series_number
-        assert self.channels[channel_index].observation_type==observation_type
-        assert self.channels[channel_index].chan = channel_number      
+        #assert self.channels[channel_index].series_number==series_number
+        assert self.channels[series_number][observation_type]==observation_type
+        assert self.channels[series_number].chan = channel_number      
         
+        self.channel_stats[self.gsi_stage][series_number] = dict()
         for stat in self.config.stats_to_harvest:
             if stat == 'nobs_used':
                 value = int(line_parts[3])
@@ -211,10 +259,9 @@ class SatinfoChannelHv(object):
                 longname = 'standard deviation'
         
 
-            self.channel_stats[self.gsi_stage][series_number] = {
+            self.channel_stats[self.gsi_stage][series_number][stat] = {
                                         'channel_number': int(line_parts[1]),
-                                        'observation_type': line_parts[2],
-                                        'statistic': stat,
+                                        'observation_type': observation_type,
                                         'value': value,
                                         'longname': longname}
                     
@@ -236,7 +283,9 @@ class SatinfoChannelHv(object):
                 """
 
                 series_number = int(line_parts[0])
-                channel_index = series_number - 1
+                #channel_index = series_number - 1
+                observation_type = line_parts[1]
+                channel = int(line2list[1].split()[0])
                 
                 line2list = line.split('=')
                 data_usage_dict = dict()
@@ -264,16 +313,29 @@ class SatinfoChannelHv(object):
                                        # correction coeficients
                     
                     data_usage_dict[var] = value    
+                
+                self.channels[series_number] = {
+                    'observation_type': observation_type,
+                    'channel': channel,
+                    'data_usage_dict': data_usage_dict
+                }
+                
+                # store channel numbers
+                if observation_type in self.obs_type_channels.keys():
+                    self.obs_type_channels[observation_type].append(
+                        channel)
+                else:
+                    self.obs_type_channels[observation_type] = [channel]
                     
-                self.channels.append(SatinfoChannel(
-                                line_parts[0], # series number
-                                line_parts[1], # obs type
-                                int(line2list[1].split()[0]), # channel
-                                data_usage_dict
-                    )
-                )
-                                           
-                if channel_index + 1 == self.nchannels:
+                # store series numbers
+                if observation_type in self.obs_type_series_numbers.keys():
+                    self.obs_type_series_numbers[observation_type].append(
+                        series_number)
+                else:
+                    self.obs_type_series_numbers[observation_type] = [
+                        series_number]
+                
+                if series_number == self.nchannels:
                     """this is the last channel
                     """
                     radinfo_read1 = False
@@ -285,29 +347,29 @@ class SatinfoChannelHv(object):
                 """
 
                 series_number = int(line_parts[0])
-                channel_index = series_number - 1
+                #channel_index = series_number - 1
                 
                 # partial assurance that this is the correct channel, by name
-                assert line_parts[1] == self.channels[channel_index].observation_type
+                assert line_parts[1] == self.channels[sereis_number][observation_type]
                 bias_corr_coef = line_parts[2:]
                 
                 if len(bias_corr_coef) == N_BIAS_CORR_COEF: # there should always be 12 channels
-                    self.channels[channel_index
-                    ].data_usage_dict[BIAS_CORR_COEF_STR].extend(
+                    self.channels[series_number
+                    ][data_usage_dict][BIAS_CORR_COEF_STR].extend(
                                                                 map(float, 
                                                                 bias_corr_coef))
                 else:
                     warnings.warn(f'cannot find exactly {N_BIAS_CORR_COEF} '
                                   'bias correction coefficients for '
-                                  f'{self.channels[channel_index]}\n'
+                                  f'{self.channels[series_number]}\n'
                                   'returning this list of strings: '
                                   f'{bias_corr_coef}')
 
-                    self.channels[channel_index
-                    ].data_usage_dict[BIAS_CORR_COEF_STR].extend(
+                    self.channels[series_number
+                    ][data_usage_dict][BIAS_CORR_COEF_STR].extend(
                                                                  bias_corr_coef)
                                    
-                if channel_index + 1 == self.nchannels:
+                if series_number == self.nchannels:
                     """this is the last channel
                     """
                     radinfo_read2 = False
