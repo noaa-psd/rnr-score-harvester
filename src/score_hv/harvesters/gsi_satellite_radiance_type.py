@@ -44,41 +44,35 @@ VALID_STATISTICS = (
     'qc7', # number of obs whose qc criteria has been adjusted by qc method 1 
 )
 
+'''
+# meta data for each instrument channel in the satinfo file 
 SatinfoChannel = namedtuple(
     'SatinfoChannel', [
-        'datetime',
-        'name',
-        'chan',
-        'var',
-        'varch_cld',
-        'use',
-        'ermax',
-        'b_rad',
-        'pg_rad',
-        'icld_det',
-        'icloud',
-        'iaeros',
-        'bias_correction_coefficients'
+        'series_number' # series number of the channel in satinfo file
+        'observation_type', # radiance observation type (e.g., hirs2_tirosn)
+        'chan', # channel number for certain radiance observation type
+        'data_usage_dict' # key:value pairs corresponding to VALID_VARIABLES
     ]
 )
 
-SatinfoChannelStats = namedtuple(
-    'SatinfoChannelStats', [
-        'datetime',
-        'iteration',
-        'series_number', # series number of the channel in satinfo file
-        'channel', # channel number for certain radiance observation type
-        'observation_type', # radiance observation type (e.g., hirs2_tirosn)
-        'nobs_used', # number of obs used in GSI analysis within this channel
-        'nobs_tossed', # number of obs tossed by gross check within this channel
-        'variance', # variance for each satellite channel
-        'bias_pre_corr', # observation minus guess before bias correction
-        'bias_post_corr', # observation minus guess after bias correction
-        'penalty', # penalty contribution from this channel
-        'sqrt_bias', # square root of (o-g with bias correction)**2 (?)
-        'std' # standard deviation
+# Summary statistics for each observation type
+RadianceObservationTypeSummary = namedtuple(
+    'RadianceObservationTypeSummary', [
+        'cycletime',
+        'gsi_stage', # GSI stage (determined by harvester)
+        'it', # GSI stage (per the fit file)
+        'satellite', # satellite name
+        'instrument', # instrument name
+        'nread', # num channels read in within analysis time window and domain
+        'nkeep', # num channels kept after data thinning
+        'nassim', # num channels used in analysis (passed all qc process)
+        'penalty', # contribution from this observation type to cost function
+        'qcpnlty', # nonlinear qc penalty from this data type
+        'cpen', # penalty divided by the number of data assimilated
+        'qccpen', # qcpnlty divided by the number of data assimilated
     ]
 )
+'''
                                                
 RadianceObservationType = namedtuple(
     'RadianceObservationType',
