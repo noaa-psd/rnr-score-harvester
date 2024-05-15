@@ -14,7 +14,7 @@ For testing and development, we recommend creating a new python environment
 install the required dependencies into a new environment using the micromamba 
 command-line interface, run the following after installing mamba/micromamba:
 
-`micromamba create -f environment.yml; micromamba activate score-hv_test_env`
+`micromamba create -f environment.yml; micromamba activate score-hv-default-env`
 
 Depending on your use case, install score-hv using one of three methods using 
 (pip)[https://pip.pypa.io/en/stable/],
@@ -23,7 +23,7 @@ Depending on your use case, install score-hv using one of three methods using
 
 `pip install -e . # editable installation into active enviroment, useful for development`
 
-`pip install -t [TARGET_DIR] --upgrade . # target installaiton into TARGET_DIR, useful for deploying for cylc workflows (see https://cylc.github.io/cylc-doc/stable/html/tutorial/runtime/introduction.html#id3)`
+`pip install -t [TARGET_DIR] --upgrade . # target installation into TARGET_DIR, useful for deploying for cylc workflows (see https://cylc.github.io/cylc-doc/stable/html/tutorial/runtime/introduction.html#id3)`
 
 Verify the installation by running the unit test suite. There are no expected test failures.
 
