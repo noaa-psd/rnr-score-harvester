@@ -1,4 +1,4 @@
-name: score-hv-test-env
+name: score-hv-default-env
 channels:
   - conda-forge
 dependencies:
