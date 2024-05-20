@@ -13,7 +13,7 @@ from netCDF4 import Dataset
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
-from score_hv.region_utils import GeoRegions 
+from score_hv.region_utils import GeoRegionsCatalog 
 
 TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_prateb_control.nc',
                         'bfg_1994010106_fhr06_prateb_control.nc',
@@ -40,14 +40,16 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean', 'variance', 'minimum', 'maximum'],
                      'variable': ['prateb_ave'],
-                     'region':   [
-                                  ['tropical', -5.0, 5.0, 0.0, 360],
-                                  ['north_hemis', 20.0, 60.0, 0.0, 360.0],
-                                  ['south_hemis', -60.0, -20.0, 0.0, 360.0],
-                                  ['conus',24.0, 49.0, 235.0, 293.0],
-                                  ['global',-90.0, 90.0, 0.0, 360.0],
-                                  ['prime_meridian',-90,90,130,90],
-                                 ]}
+                     'region':  {
+                                 'tropical': {'latitude_range': (-5.0, 5.0), 'longitude_range': (360.0,0.0)},
+                                 'north_hemis': {'latitude_range': (20.0, 60.0), 'longitude_range': (360.0, 0.0)},
+                                 'south_hemis': {'latitude_range': (-60.0, -20.0), 'longitude_range': (360.0, 0.0)},
+                                 'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},
+                                 'global': {'latitude_range': (-90.0, 90.0), 'longitude_range': (360.0, 0.0)},
+                                 'prime_meridian': {'latitude_range': (-90, 90), 'longitude_range': (10, 350)},
+                                 'africa': {'latitude_range': (35, 37), 'longitude_range': ( 51.5, 17.5) }
+                                }
+                     }
 
 def test_gridcell_area_conservation(tolerance=0.001):
 
@@ -80,54 +82,72 @@ def test_global_mean_values_offline(tolerance=0.001):
     these forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    if 'region' in str(data1[0]):
-        global_means = [7.04825819962097e-05, 2.8965191456702544e-05,2.2748022739982528e-05, \
-                        2.2748022739982528e-05,3.1183886948414354e-05,2.3081037860291425e-05]
-    iregion = 0 
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'mean':
-           assert global_means[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           assert global_means[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           iregion = iregion + 1
+    """ 
+      If the word region is in data1 returned by the harvester then has_region will be True.
+      """
+    for harvested_data in data1[0]:  
+        has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
+        if has_region:
+           global_means = [7.04825819962097e-05, 2.8965191456702544e-05,2.2748022739982528e-05, \
+                           2.8757226299207098e-05, 3.1183886948414354e-05, 3.1852686337843634e-05, \
+                           6.275229210830687e-05]
+           
+           for i, harvested_tuple in enumerate(data1):
+               if harvested_tuple.statistic == 'mean':
+                  num_values = len(harvested_tuple.value)
+                  for inum in range(num_values):
+                      assert global_means[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                      assert global_means[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
 
 def test_gridcell_variance(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
-    if 'region' in str(data1[0]):
-        variances = [1.48348705705598e-08, 4.3899346663891055e-09, 2.452054630702822e-09, \
-                 4.47877939776161e-09, 5.7414012487690275e-09,3.4993706919644485e-09]
-    iregion = 0    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'variance': 
-           assert variances[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           assert variances[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           iregion = iregion + 1
+   
+    for harvested_data in data1[0]:  
+        has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
+        if has_region:
+           variances = [1.48348705705598e-08, 4.3899346663891055e-09, 2.452054630702822e-09, \
+                        4.404340940629795e-09, 5.7414012487690275e-09,3.4993706919644485e-09, \
+                        7.161997716865958e-09] 
+           for i, harvested_tuple in enumerate(data1):
+                if harvested_tuple.statistic == 'variance':
+                   num_values = len(harvested_tuple.value)
+                   for inum in range(num_values):
+                       assert variances[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                       assert variances[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
 
 def test_gridcell_min(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    if 'region' in str(data1[0]):    
-        min_values = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-    iregion = 0    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'minimum': 
-           assert min_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           assert min_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           iregion = iregion + 1
+     
+    """ 
+      If the word region is in data1 returned by the harvester then has_region will be True.
+      """
+    for harvested_data in data1[0]:  
+        has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
+        if has_region:
+           min_values = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.9682753e-10]
+           for i, harvested_tuple in enumerate(data1):
+                if harvested_tuple.statistic == 'minimum':
+                   num_values = len(harvested_tuple.value)
+                   for inum in range(num_values):
+                       assert min_values[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                       assert min_values[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
 
 def test_gridcell_max(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    if 'region' in str(data1[0]):
-        max_values = [0.0032889172, 0.002300344, 0.0009843283, 0.00071415555, 0.004360093, 0.0022887615]
+    
+    for harvested_data in data1[0]:  
+        has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
+        if has_region:
+           max_values = [0.0032889172, 0.002300344, 0.0009843283, 0.00071415555, 0.004360093, \
+                         0.0022887615, 0.000595822 ]
+ 
+           for i, harvested_tuple in enumerate(data1):
+               if harvested_tuple.statistic == 'maximum':
+                  num_values = len(harvested_tuple.value)
+                  for inum in range(num_values):
+                      assert max_values[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                      assert max_values[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
 
-    iregion = 0    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'maximum': 
-           assert max_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           assert max_values[iregion] <= (1 + tolerance) * harvested_tuple.value[iregion]
-           iregion = iregion + 1
-
-     
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].units == "kg/m**2/s"
