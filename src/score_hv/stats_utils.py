@@ -15,7 +15,7 @@ import pdb
 from netCDF4 import Dataset
 from pathlib import Path
 
-class var_stats:
+class var_statsCatalog:
     """
       This allows for the instantiation of the var_stats class.  The 
       requested list of statistics that the user wants is passed into this
