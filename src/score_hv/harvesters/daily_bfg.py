@@ -257,9 +257,6 @@ class DailyBFGHv(object):
           """
         user_regions = self.config.regions
         regions_catalog = GeoRegionsCatalog()
-        #for name, region_data in self.config.regions.items():
-        #    regions_catalog.add_user_region(name,region_data['latitude_range'], \
-        #                                         region_data['longitude_range'])
         regions_catalog.add_user_region(self.config.regions)
 
         for i, variable in enumerate(self.config.get_variables()):
@@ -305,6 +302,9 @@ class DailyBFGHv(object):
             region_index_values = regions_catalog.get_region_coordinates(latitudes,longitudes)
             for name, indices  in region_index_values.items():
                 lat_start_index, lat_end_index, east_index, west_index = indices 
+                """ The variable_data.isel is a xarray method that selects a range of indices
+                    along the grid_yt and grid_xt dimension.
+                    """
                 var_data = variable_data.isel(time=slice(None), \
                                             grid_yt=slice(lat_start_index,lat_end_index+1), \
                                             grid_xt=slice(east_index,west_index))
