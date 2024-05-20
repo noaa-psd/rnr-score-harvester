@@ -13,13 +13,14 @@ from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
 from score_hv.config_base  import ConfigInterface
-from score_hv.stats_utils  import var_stats
-from score_hv.region_utils import GeoRegions
+from score_hv.stats_utils  import var_statsCatalog
+from score_hv.region_utils import GeoRegionsCatalog
 
 
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
-
+VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'east_lon', 'west_lon')
+DEFAULT_REGION = {'global': {'latitude_range': (-90.0, 90.0), 'longitude_range': (360.0, 0.0)}}
 
 """Variables of interest that come from the background forecast data.
 Commented out variables can be uncommented to generate gridcell weighted
@@ -27,9 +28,14 @@ statistics but are in development and are currently not fully supported.
 """
 VALID_VARIABLES  = (
                     #'icetk', # sea ice thickness (m)
-                    #'lhtfl_ave', # surface latent heat flux (W m^-2)
+                    'lhtfl_ave',# surface latent heat flux (W/m**2)
+                    'shtfl_ave', # surface sensible heat flux (W/m**2)
+                    'dlwrf_ave', # surface downward longwave flux (W/m**2)
+                    'dswrf_ave', # averaged surface downward shortwave flux (W/m**2)
+                    'ulwrf_ave', # surface upward longwave flux (W/m**2)
+                    'uswrf_ave', # averaged surface upward shortwave flux (W/m**2)
                     'netrf_avetoa',#top of atmosphere net radiative flux (SW and LW) (W/m**2)
-                    'netR',#surface energy balance (W/m**2)
+                    'netef_ave',#surface energy balance (W/m**2)
                     'prateb_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
@@ -58,6 +64,9 @@ def get_gridcell_area_data_path():
                         '_bfg_control_1536x768_20231116.nc')
 
 def get_median_cftime(xr_dataset):
+    """the xr_dataset is a netcdf bfg_xr_dataset.  Where time stamps represent
+       end points for the time period.
+       """
     temporal_endpoints = np.array([cftime.date2num(time, \
                                    'hours since 1951-01-01 00:00:00') \
                                    for time in xr_dataset['time']])
@@ -82,20 +91,20 @@ def check_weights(area_weights,total_original_elements,total_regional_elements):
       """
     sumweights = area_weights.sum()
     ratio = total_regional_elements / total_original_elements 
-    constant = ratio * 4 * np.pi
+    total_solid_angle = ratio * 4 * np.pi 
     try:
-      assert sumweights >= 0.999 * constant 
-      assert sumweights <= 1.001 * constant
+      assert sumweights >= 0.999 * total_solid_angle  
+      assert sumweights <= 1.001 * total_solid_angle
 
     except AssertionError as err:
       msg = (f'{gridcell_area_weights}\n'
-               '(gridcell area weights) sum does not equal 4pi steradians; ' 
+               f'(gridcell area weights) sum does not equal {total_solid_angle} steradians; '  
                'cannot calculate accurate global/regional weighted statistics')
       raise AssertionError(msg) from err 
     
 def calculate_surface_energy_balance(xr_dataset):
     """
-       This method calculates the derived variable netR. 
+       This method calculates the derived variable netef_ave. 
        The required fields are:
        dswrf_ave : averaged surface downward shortwave flux
        dlwrf_ave : surface downward longwave flux
@@ -103,7 +112,7 @@ def calculate_surface_energy_balance(xr_dataset):
        uswrf_ave : averaged surface upward shortwave flux
        shtfl_ave : surface sensible heat flux
        lhtfl_ave : surface latent heat flux
-       netR = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
+       netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
        """
     dswrf=xr_dataset['dswrf_ave']
     dlwrf=xr_dataset['dlwrf_ave']
@@ -111,12 +120,12 @@ def calculate_surface_energy_balance(xr_dataset):
     uswrf=xr_dataset['uswrf_ave']
     shtfl=xr_dataset['shtfl_ave']
     lhtfl=xr_dataset['lhtfl_ave']
-    netR_data=dswrf + dlwrf - ulwrf - uswrf - shtfl - lhtfl
-    return(netR_data)
+    netef_ave_data=dswrf + dlwrf - ulwrf - uswrf - shtfl - lhtfl
+    return(netef_ave_data)
 
 def calculate_toa_radative_flux(xr_dataset):
     """
-       This method calculates the derived variable netrf_avetoa.
+       This method calculates the derived variable netef_ave.
        The variable name netrf_avetoa referes to the top of the
        atmosphere (TOA) net radiative energy flux.
        The required fields are:
@@ -145,7 +154,7 @@ class DailyBFGConfig(ConfigInterface):
         self.harvest_filenames=self.config_data.get('filenames')
         self.set_stats()
         self.set_variables()
-        self.set_region()
+        self.set_regions()
 
     def set_variables(self):
         """
@@ -165,21 +174,21 @@ class DailyBFGConfig(ConfigInterface):
         ''' return list of all stat types based on harvest_config '''
         return self.stats
     
-    def get_region(self):
+    def get_regions(self):
         ''' return list of regions based on harvest config'''
-        return self.region
+        return self.regions
 
-    def set_region(self):
-        try: 
-           self.region=self.config_data.get('region')
-        except KeyError:    
-           self.region = 'global' 
-        
+    def set_regions(self):
+        self.regions = self.config_data.get('region')
+        if self.regions is None:   
+           self.regions =  DEFAULT_REGION
+           print("Setting a default global region ",self.regions)
+
     def set_stats(self):
         """
         set the statistics specified by the config dict
         """
-        self.stats=self.config_data.get('statistic')
+        self.stats = self.config_data.get('statistic')
         for stat in self.stats:
             if stat not in VALID_STATISTICS:
                 msg = ("'%s' is not a supported statistic to harvest from "
@@ -187,12 +196,11 @@ class DailyBFGConfig(ConfigInterface):
                        "Please reconfigure the input dictionary using only the "
                        "following statistics: %r" % (stat, VALID_STATISTICS))
                 raise KeyError(msg)
-            num_stats=len(self.stats)
-            var_stats_instance=var_stats(self.stats)
     
     def get_variables(self):
         ''' return list of all variable types based on harvest_config'''
         return self.variables
+
 @dataclass
 class DailyBFGHv(object):
     """ Harvester dataclass used to parse daily mean statistics from 
@@ -240,43 +248,26 @@ class DailyBFGHv(object):
         total_original_elements = num_lat * num_lon
         total_regional_elements = total_original_elements
         check_weights(gridcell_area_weights,total_original_elements,total_regional_elements) 
-        
-        regions_instance=GeoRegions(latitudes,longitudes)
-        user_regions = self.config.region
-        if user_regions:
-           """
-             The user has requested a region/regions so we need to
-             instantiate the region class.  We do this by giving the
-             entire lat and lon values in the data set.
-             """
-           num_regions   = len(user_regions)
-           for region_info in user_regions:
-                    region_name, min_lat, max_lat, east_lon, west_lon = region_info
-                    regions_instance.add_user_region(region_name,min_lat,max_lat,east_lon,west_lon)
-        else:
-            """
-              The user has not requested a specific region.  So
-              we will set a global region.  This makes the code
-              much simplier.
-              """
-            region_name="global"
-            min_lat=-90.0
-            max_lat=90.0
-            east_lon=0.0
-            west_lon=360.0
-            regions_instance.add_user_region(region_name,min_lat,max_lat,east_lon,west_lon)
-            num_regions=1
-        
         median_cftime = get_median_cftime(xr_dataset)
-        
-        
+
+        """
+          We have a least one region so we can instantiate the region catalog.
+          The regions were gathered in the get_regions method above in the DailyBFGConfig class.
+          and are defined in self.config.regions dictionary.
+          """
+        user_regions = self.config.regions
+        regions_catalog = GeoRegionsCatalog()
+        #for name, region_data in self.config.regions.items():
+        #    regions_catalog.add_user_region(name,region_data['latitude_range'], \
+        #                                         region_data['longitude_range'])
+        regions_catalog.add_user_region(self.config.regions)
+
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable.
                """
-               
             namelist=self.config.get_variables()
             var_name=namelist[i]
-            if var_name == "netR":
+            if var_name == "netef_ave":
                  variable_data=calculate_surface_energy_balance(xr_dataset)
                  longname="surface energy balance"
                  units="W/m**2"
@@ -302,7 +293,7 @@ class DailyBFGHv(object):
               class and returned.
               """
             stats_list = self.config.get_stats()
-            var_stats_instance = var_stats(stats_list)
+            var_stats_instance = var_statsCatalog(stats_list)
             """
               The temporal means is a list which will hold the 
               temporal means calculated in this function.
@@ -311,10 +302,10 @@ class DailyBFGHv(object):
               by the user.
               """
             temporal_means = []
-            region_index_values = regions_instance.get_region_coordinates()
-            for ireg in region_index_values:
-                lat_start_index, lat_end_index, east_index, west_index = ireg 
-                var_data=variable_data.isel(time=slice(None), \
+            region_index_values = regions_catalog.get_region_coordinates(latitudes,longitudes)
+            for name, indices  in region_index_values.items():
+                lat_start_index, lat_end_index, east_index, west_index = indices 
+                var_data = variable_data.isel(time=slice(None), \
                                             grid_yt=slice(lat_start_index,lat_end_index+1), \
                                             grid_xt=slice(east_index,west_index))
                 
@@ -324,7 +315,6 @@ class DailyBFGHv(object):
                 temporal_means.append(value)
                 var_stats_instance.calculate_requested_statistics(var_data,weights,value)
             
-
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic and regions if the user has requested geographical
@@ -332,7 +322,7 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-                    
+                  
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
                 
@@ -341,7 +331,7 @@ class DailyBFGHv(object):
                     
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
-                    
+
                 harvested_data.append(HarvestedData(
                                       self.config.harvest_filenames,
                                        statistic, 
