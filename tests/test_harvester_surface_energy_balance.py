@@ -38,10 +38,10 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean', 'minimum', 'maximum', 'variance'],
-                     'variable': ['netR']}
+                     'variable': ['netef_ave']}
 
 """
-  This python script is the test for the surface energy balance(netR).
+  This python script is the test for the surface energy balance(netef_ave).
   The netR  is calculated by the formula:
   netR = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
   Where:
@@ -84,7 +84,7 @@ def test_harvester_get_files():
 
 def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].variable == 'netR'
+    assert data1[0].variable == 'netef_ave'
 
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
