@@ -46,6 +46,7 @@ VALID_STATISTICS = (
 SatinfoStat = namedtuple(
     'SatinfoStat', [
         'datetime',
+        'ensemble_member',
         'iteration',
         'observation_type', # radiance observation type (e.g., hirs2_tirosn)
         'series_numbers', # series numbers of the channels in satinfo file
@@ -131,6 +132,7 @@ class SatinfoChannelHv(object):
         self.datetime = datetime.strptime(
             self.config.harvest_filename.split('.')[-1].split('_')[0],
             '%Y%m%d%H')
+        self.ensemble_member = self.config.harvest_filename.split('.')[1].split('_')[1]
         
         with open(self.config.harvest_filename, encoding="utf-8") as f:
             self.lines = list(f)
@@ -155,6 +157,7 @@ class SatinfoChannelHv(object):
                     
                 self.satinfo_stats.append(SatinfoStat(
                     self.datetime,
+                    self.ensemble_member,
                     None,
                     obs_type,
                     series_num_list,
@@ -199,6 +202,7 @@ class SatinfoChannelHv(object):
                         
                         self.satinfo_stats.append(SatinfoStat(
                             self.datetime,
+                            self.ensemble_member,
                             gsi_stage,
                             obs_type,
                             series_num_list,
