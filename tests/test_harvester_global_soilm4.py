@@ -39,9 +39,11 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean','variance', 'minimum', 'maximum'],
                      'variable': ['soill4'],
-                     'region': [
-                               ['land',-90.0, 90.0, 0.0, 360.0]
-                               ]
+                     'surface_mask': ['land'],
+                     'region' : {'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},  
+                                'south_america': {'latitude_range': (12.4586, 55.9799), 'longitude_range': (81.0781, 34.8)},
+                                'africa': {'latitude_range': (35, 37), 'longitude_range': ( 51.5, 17.5) }
+                                }
                      }
 
 def test_gridcell_area_conservation(tolerance=0.001):
