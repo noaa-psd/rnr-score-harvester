@@ -19,112 +19,159 @@ from pathlib import Path
   geographical regions.
   """
 
-DEFAULT_MAX_LAT = 90.0
-DEFAULT_MIN_LAT = -90.0
-DEFAULT_EAST_LON = 0.0
-DEFAULT_WEST_LON = 360.0
+"""
+  Here we define default latitude and longitude range tuples.
+  min lat is -90 and max lat is 90. Tuple is (min_lat,max_lat)
+  NOTE: Our longitude on the BFG files goes from 0 to 360 degrees east, circular.
+  east_lon = 360 and west lon = 0. Tuple is (east_lon, west_lon)
+  """
+DEFAULT_LATITUDE_RANGE  = (-90, 90) 
+DEFAULT_LONGITUDE_RANGE = (360, 0)
 
-class GeoRegions:
-    def __init__(self,latitudes,longitudes):
+class GeoRegionsCatalog:
+    def __init__(self):
         """
-          Parameters:
-          - new_name: Name of the new region.
-          - new_min_lat: Minimum latitude of the new region.
-          - new_max_lat: Maximum latitude of the new region.
-          - new_east_lon: Eastern longitude of the new region.
-          - new_west_lon: Western longitude of the new region.
-        """
-        self.name=[]
-        self.min_lat=[]
-        self.max_lat=[]
-        self.east_lon=[]
-        self.west_lon=[]
-        self.latitudes=latitudes
-        self.longitudes=longitudes
+          Here we initalize the region class. 
+          The variable unmasked_regions is set to all. Meaning, there is
+          no masking of land, ocean or ice.  This varaible is set in the
+          method check_region_validity in this script below. 
+          """
+        self.name = []
+        self.latitude_tuples = []
+        self.longitude_tuples = []
 
-    def add_user_region(self, new_name, new_min_lat, new_max_lat, \
-                        new_east_lon, new_west_lon):
+    def test_user_latitudes(self,latitude_range):
         """
-          Calculate a new region based on specified parameters.
-
-          Parameters:
-          - new_name: Name of the new region.
-          - new_min_lat: Minimum latitude of the new region.
-          - new_max_lat: Maximum latitude of the new region.
-          - new_east_lon: Eastern longitude of the new region.
-          - new_west_lon: Western longitude of the new region.
-        """
-        if not isinstance(new_name, str):
-           msg = f'name must be a string - name {new_name}'
-           raise ValueError(msg)
-        
-        if new_min_lat > new_max_lat:  
-           msg = f'minimum latitude must be less than maximum latitude ' \
-                 f'min_lat: {new_min_lat}, max_lat: {new_max_lat}'  
-           raise ValueError(msg)
-         
-        if new_min_lat < -90. or new_min_lat > 90.:
+          This method tests to make sure the latitude values 
+          entered by the user are within the bounds of -90 to 90.
+          Also, if the user has not entered latitude values then 
+          the default values assigned.
+          """
+        min_lat, max_lat = latitude_range
+        if min_lat < -90 or min_lat > 90:
            msg = f'minimum latitude must be greater than -90. and less than 90. '\
-                 f'min_lat: {new_min_lat}'
+                 f'min_lat: {min_lat}'
            raise ValueError(msg)
 
-        if new_max_lat > 90.0  or new_max_lat < -90.:
-           msg = f'maximum latitude must be greater than -90. and less than 90. '\
-                 f'max_lat: {new_max_lat}'
-           raise ValueError(msg)        
-         
-        if new_east_lon < 0.0 or new_east_lon > 360.:
-           msg = f'east longitude must be greater than 0.0 and less than 360. ' \
-                 f'east_lon: {new_east_lon}'
-           raise ValueError(msg)
-        
-        if new_west_lon > 360.0 or  new_west_lon < 0.0:
-           msg = f'west longitude must be less than 360.0 and greater than 0.0 ' \
-                 f'west_lon: {new_west_lon}'
+        if max_lat < -90 or max_lat > 90:
+           msg = f'maximum latitude must be greater than -90 and less than 90. ' \
+                 f'max_lat: {max_lat}'
            raise ValueError(msg)
 
-        self.name.append(new_name)
-        self.min_lat.append(new_min_lat)
-        self.max_lat.append(new_max_lat)
-        self.east_lon.append(new_east_lon)
-        self.west_lon.append(new_west_lon)
+        if min_lat > max_lat:
+           msg = f'minimum latitude must be less than maximum latitude ' \
+                f'min_lat: {min_lat}, max_lat: {max_lat}'  
+           raise ValueError(msg)
 
-    def get_region_coordinates(self):
-        latitudes = self.latitudes
-        longitudes = self.longitudes
-        num_lon = len(longitudes)
-        num_lat = len(latitudes)
-        region_indices = []
-        for i in range(len(self.name)):
-            min_lat = self.min_lat[i]
-            max_lat = self.max_lat[i]
-            east_lon = self.east_lon[i]
-            west_lon = self.west_lon[i]
-            # Find latitude indices within the region
-            latitude_indices=[index for index, lat in enumerate(latitudes) if min_lat <= lat <= max_lat]
+    def test_user_longitudes(self,longitude_range):
+
+        east_lon,west_lon = longitude_range
+        if east_lon < 0 or east_lon > 360:
+           msg = f'east longitude must be greater than 0 and less than 360 '\
+                 f'east_lon: {east_lon}'
+           raise ValueError(msg)
+
+        if west_lon < 0 or west_lon > 360:
+           msg = f'west longitude must be greater than 0 and less than 360 '\
+                 f'west_lon: {west_lon}'
+           raise ValueError(msg)
+
+    def check_region_validity(self,dictionary):
+        """
+          Parameters:
+          dictionary - The dictionary should contain the following keys.
+                       name - name of the region.
+                       latitude_range - a tuple of min and max latitude values
+                       longitude_range - a tuple of east and west longitude values.
+          If the dictionay is empty we exit with a message.             
+          If either the latitude or the longitude keys are missing we supply
+          a default.
+
+          This method will check to see if the user wants to apply a mask.
+          The variable unmasked_regions is set to the area that the user 
+          wants to keep.  It is initialized to 'all', meaning that the 
+          user does not want to mask out any areas.
+          """
+        if not dictionary:
+            msg = f'The dictionary passed in to check_region_validity is empty'
+            raise ValueError(msg)
+
+        print("in check region validity")
+
+        for region_name ,subvalue in dictionary.items():
             """
-              The if statement tests to make sure the list,latitude_indices, is not empty.  
-              if the list is empty it returns false.  If it is not empty it returns true.
-              """
+             Here we test to see if user is missing either the longitude or
+             the latitude tuple values by iterating through the dictionary.  
+             If either one is missing then we supply the default values.
+             If unmasked_regions is either 'land','ocean' or 'ice' then there 
+             will not be latitude or longitute region tuples. 
+             """
+            if "longitude_range" not in subvalue:
+                print("missing longitude values. Using defaults of east longitude = 360 and west longitude  = 0")
+                longitude_range = DEFAULT_LONGITUDE_RANGE
+            else: 
+                longitude_range = subvalue.get("longitude_range")
+            self.test_user_longitudes(longitude_range)
+
+            if "latitude_range" not in subvalue:    
+                print("Latitude range is missing. Using defaults of minimum latitude = -90, maximum latitude = 90")
+                latitude_range = DEFAULT_LATITUDE_RANGE 
+            else:
+                latitude_range = subvalue.get("latitude_range")
+            self.test_user_latitudes(latitude_range)
+            print("all passed")
+            
+            self.name.append(region_name)
+            self.latitude_tuples.append(latitude_range)
+            self.longitude_tuples.append(longitude_range)
+
+    def get_region_coordinates(self,latitude_values,longitude_values):
+        """
+          This method calculates the indices in the latitude values and
+          longitude values that are passed in from the calling function. 
+          The latitude and longitude tuples values assigned in the 
+          method, add_user_region, above are used to determine the 
+          indices.
+          Parameters:
+          - latitude_values:  These are the array of latitude values from 
+            the bfg files opened with xarray.
+          - longitude values:  These are the array of longitude values from 
+            the bfg files opened with xarray.
+          - returns: The lat_indices and lon_indices.  These lists 
+            return the start and end indices as tuples. 
+            """
+
+        num_lon = len(longitude_values)
+        num_lat = len(latitude_values)
+        step_size = longitude_values[num_lon-1]/num_lon
+        region_indices = {}
+
+        for ireg in range(len(self.name)):
+            # Find latitude indices within the region.
+            name = self.name[ireg]
+            min_lat,max_lat = self.latitude_tuples[ireg]
+            latitude_indices = [index for index, lat in enumerate(latitude_values) if min_lat <= lat <= max_lat]
             if latitude_indices:
                lat_start_index = latitude_indices[0]
                lat_end_index = latitude_indices[-1]
             else:
-               msg=f"No latitude values found within the specified range of {min_lat} and {max_lat}."
+               msg=f"No latitude values were found within the specified range of {min_lat} and {max_lat}."
                raise KeyError(msg)
- 
-            """Find longitude indices within the region. We need to include values of east and west
-               that include the prime meridian.
-               """
-            ieast = (east_lon * num_lon)/360
-            jwest = (west_lon * num_lon)/360
-            east_index = math.floor(ieast)
-            west_index = math.floor(jwest)
-            if east_index > west_index:
-               temp = east_index
-               east_index = west_index
-               west_index = temp 
-            region_indices.append((lat_start_index, lat_end_index, east_index, west_index))
-        
-        return region_indices
+
+            """Find longitue indices within the region.
+               We have two cases to consider here. 
+               Ranges that do not cross the Prime Meridian and ranges that do cross the 
+               prime meridian. Our longitude array is 0 to 360 degrees east circular.
+                  """
+            east_lon,west_lon = self.longitude_tuples[ireg]
+            if east_lon <= west_lon:
+                #region crosses the prime meridian.
+                lon_start_index = int(east_lon / step_size)
+                lon_end_index = int(west_lon / step_size)
+            else:
+                lon_start_index = int(west_lon / step_size) 
+                lon_end_index = int(east_lon / step_size)
+           
+            region_indices[name] = (lat_start_index,lat_end_index,lon_start_index,lon_end_index)
+        return region_indices 
 
