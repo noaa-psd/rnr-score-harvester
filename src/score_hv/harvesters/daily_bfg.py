@@ -156,6 +156,7 @@ class DailyBFGConfig(ConfigInterface):
         self.harvest_filenames=self.config_data.get('filenames')
         self.set_stats()
         self.set_variables()
+        self.set_longnames()
         self.set_surface_mask()
         self.set_regions()
 
@@ -176,7 +177,13 @@ class DailyBFGConfig(ConfigInterface):
     def get_stats(self):
         ''' return list of all stat types based on harvest_config '''
         return self.stats
-   
+  
+    def get_longnames(self):
+        return self.longname
+
+    def set_longnames(self):
+        self.longname = self.config_data.get('longname')
+
     def get_masks(self):
         return self.surface_mask
 
@@ -257,7 +264,24 @@ class DailyBFGHv(object):
         longitudes = xr_dataset['grid_xt']
         if self.config.surface_mask != None:
            land_mask = xr_dataset['land']
-
+           print("in surface mask ",self.config.surface_mask)
+           """
+             The user has requested a mask. Here we keep only the 
+             type of data that the user wants. On the bfg Netcdf file
+             the land mask has: 
+                              0 for ocean
+                              1 for land
+                              2 for ice.
+             The xarray where method in the line below will keep the data 
+             where the land_mask is True and replace the values where it is
+             false with the missing value in the meta data of the bfg file.
+             The "other = value_to_use - This makes sure that the data set 
+             missing value is used where the mask is false.
+             """
+           missing_value = land_mask.encoding.get('missing_value',None)
+           value_to_use = missing_value 
+    
+        print("Missing ",value_to_use)
         gridcell_area_data=xr.open_dataset(get_gridcell_area_data_path())
         gridcell_area_weights=(gridcell_area_data.variables['area'])
         num_lat = len(latitudes.values)
@@ -281,6 +305,7 @@ class DailyBFGHv(object):
                """
             namelist=self.config.get_variables()
             var_name=namelist[i]
+            print("var_name  ",var_name)
             if var_name == "netef_ave":
                  variable_data=calculate_surface_energy_balance(xr_dataset)
                  longname="surface energy balance"
@@ -290,107 +315,17 @@ class DailyBFGHv(object):
                  longname="Top of atmosphere net radiative flux"
                  units="W/m**2"
             else:
-                 print("before config surface mask ",self.config.surface_mask)
-                 if self.config.surface_mask != None:
-                     print("in surface mask ",self.config.surface_mask)
-                     """
-                       The user has requested a mask. Here we keep only the 
-                       type of data that the user wants. On the bfg Netcdf file
-                       the land mask has: 
-                                         0 for ocean
-                                         1 for land
-                                         2 for ice.
-                        The xarray where method in the line below will keep the data 
-                        where the land_mask is True and replace the values where it is
-                        false with the missing value in the meta data of the bfg file.
-                        The "other = value_to_use - This makes sure that the data set fill
-                        value or missing value is used where the mask is false.
-                        """
-                     unmasked_data = xr_dataset[variable]  
-                     missing_value = unmasked_data.encoding.get('missing_value',None)
-                     fill_value = xr_dataset[variable].attrs.get('_FillValue', None)
-                     if missing_value is not None:
-                        value_to_use = missing_value 
-                     elif fill_value is not None:
-                        value_to_use = fill_value
-                     else:
-                        value_to_use = np.nan
-                     if 'land' in self.config.surface_mask:
-                        variable_data = xr_dataset[variable].where(land_mask == 1, other=value_to_use)
-                        sys.exit(0)
-                 else:    
-                     variable_data=xr_dataset[variable]
-
+                 variable_data=xr_dataset[var_name] 
+                 longname = self.config.get_longnames() 
                  if 'long_name' in variable_data.attrs:
-                     longname=variable_data.attrs['long_name']
-                 else:
-                     longname="None"
-                 if 'units' in variable_data.attrs:
-                     units=variable_data.attrs['units']
-                 else:
-                     units="None"
-            """
-              Get the statistics requested by the user.  
-              Instantiate the stats class in stats_util.py.
-              Initialize the temporal_means list.  The
-              temporal_means are calculated in the stats_util.py
-              class and returned.
-              """
-            stats_list = self.config.get_stats()
-            var_stats_instance = var_statsCatalog(stats_list)
-            """
-              The temporal means is a list which will hold the 
-              temporal means calculated in this function.
-              The temporal means are passed into the stats_util 
-              class in order to calculate the statistics requested
-              by the user.
-              """
-            temporal_means = []
-            region_index_values = regions_catalog.get_region_coordinates(latitudes,longitudes)
-            print(region_index_values)
-            sys.exit(0)
-            for name, indices  in region_index_values.items():
-                lat_start_index, lat_end_index, east_index, west_index = indices 
-                """ The variable_data.isel is a xarray method that selects a range of indices
-                    along the grid_yt and grid_xt dimension.
-                    """
-                var_data = variable_data.isel(time=slice(None), \
-                                            grid_yt=slice(lat_start_index,lat_end_index+1), \
-                                            grid_xt=slice(east_index,west_index))
-                
-                weights=gridcell_area_data['area'].isel(grid_yt=slice(lat_start_index,lat_end_index + 1), \
-                                                        grid_xt=slice(east_index, west_index))
-                value  = np.ma.masked_invalid(var_data.mean(dim='time',skipna=True))
-                temporal_means.append(value)
-                var_stats_instance.calculate_requested_statistics(var_data,weights,value)
-            
-            for j, statistic in enumerate(self.config.get_stats()):
-                """ The second nested loop iterates through each requested 
-                    statistic and regions if the user has requested geographical
-                    regions..
-                    """
-                if statistic == 'mean':
-                    value = var_stats_instance.weighted_averages 
-                  
-                elif statistic == 'variance':
-                    value = var_stats_instance.variances
-                
-                elif statistic == 'maximum':
-                    value = var_stats_instance.maximum
-                    
-                elif statistic == 'minimum':
-                    value = var_stats_instance.minimum
+                     print(variable_data.attrs)
+                     print("in")
+                     longname[i]=variable_data.attrs['long_name']
 
-                harvested_data.append(HarvestedData(
-                                      self.config.harvest_filenames,
-                                       statistic, 
-                                       variable,
-                                       np.float32(value),
-                                       units,
-                                       dt.fromisoformat(median_cftime.isoformat()),
-                                       longname,
-                                       user_regions))
-       
+                 if 'units' in variable_data.attrs:
+                     units[i]=variable_data.attrs['units']
+                 else:
+                     units[i]="None"
+        print("longname   ",longname[i])                 
         gridcell_area_data.close()
         xr_dataset.close()
-        return harvested_data
