@@ -35,7 +35,13 @@ input data files and other inputs to the harvester (such as variables and
 statistics to harvest)
 
 For example, the following dictionary could be used to request the global, gridcell area weighted statistics for the temporally (in this case daily)
-averaged upwelling longwave radiation from the given netcdf files.
+Weighted Netcdf gridcell area data.
+A netcdf file containing area grid cell weights is required.  
+This file should be included in the git hub repository with the down load 
+of the harvester code.
+
+
+Example input dictionary: 
 ```sh
 {'harvester_name': 'daily_bfg',
     'filenames' : ['/filepath/tmp2m_bfg_2023032100_fhr09_control.nc',
@@ -48,6 +54,11 @@ averaged upwelling longwave radiation from the given netcdf files.
                     '/filepath/tmp2m_bfg_2023032200_fhr06_control.nc'],
     'statistic': ['mean','variance', 'minimum', 'maximum'],
     'variable': ['ulwrf_avetoa']}
+    'region': { 
+                 'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},
+                 'global': {'latitude_range': (-90.0, 90.0), 'longitude_range': (360.0, 0.0)}
+              }
+            
 ```
 
 A request dictionary must provide the harvester_name and filenames. Supported 
@@ -55,21 +66,65 @@ harester_name(s) are provided below, and each harvester may have additional
 input options or requirements. 
 
 ## Supported harvesters
+=======
+filenames : A list of Netcdf bfg files that are output from a model simulation.
+statistic : A list of statistics.  Valid statistics are ['mean', 'variance', 'minimum', 'maximum']
+variable  : A list of valid variables is below.  These variable names are taken from the Netcdf bfg files.
+region    : This is a nested dictionary.  The region name is a required key word.  The following 
+            nested dictionaries are accepted:
+            'user name of region': {'latitude_range' : (min_lat,max_lat)}
+            The user has not specified a longitude range.  The default will be applied. 
+            default longitude is (360, 0)
+            NOTE:  The longitude values on the bfg files are grid_xt : 0 to 359.7656 by 0.234375 degrees_E  circular
 
-### obs_info_log
-observation information for pressure, specific humidity, temperature, height, wind components, precipitable h2o, and relative humidity
+            'user name of region': {'longitude_range' : (min_lon,max_lon}
+            The user has not specified a latitude_range.  The default will be applied.
+            default latitude is (-90,90)
+            NOTE:  The latitude values on the bfg files are grid_yt : 89.82071 to -89.82071 degrees_N
+       
+            'user_name of region': {'latitude_range': (min_lat,max_lat), 'longitude_range': (min_lon,max_lon)}
 
-**Expected file format**: log 
+          
 
-File format generated from NCEPlibs cmpbqm command output 
 
 Required dictionary inputs: 'variable'
+## Available Harvester variables:
+VALID_VARIABLES  = (
+                    'lhtfl_ave',# surface latent heat flux (W/m**2)
+                    'shtfl_ave', # surface sensible heat flux (W/m**2)
+                    'dlwrf_ave', # surface downward longwave flux (W/m**2)
+                    'dswrf_ave', # averaged surface downward shortwave flux (W/m**2)
+                    'ulwrf_ave', # surface upward longwave flux (W/m**2)
+                    'uswrf_ave', # averaged surface upward shortwave flux (W/m**2)
+                    'netrf_avetoa',#top of atmosphere net radiative flux (SW and LW) (W/m**2)
+                    'netef_ave',#surface energy balance (W/m**2)
+                    'prateb_ave', # surface precip rate (mm weq. s^-1)
+                    'soil4', # liquid soil moisture at layer-4 (?)
+                    'soilm', # total column soil moisture content (mm weq.)
+                    'soilt4', # soil temperature unknown layer 4 (K)
+                    'tg3', # deep soil temperature (K)
+                    'tmp2m', # 2m (surface air) temperature (K)
+                    'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
+                    )
+The variable netrf_avetoa is calculated from:
+       dswrf_avetoa:averaged surface downward shortwave flux
+       uswrf_avetoa:averaged surface upward shortwave flux
+       ulwrf_avetoa:surface upward longwave flux
+       Theses variables are found in the bfg control files.
+       netrf_avetoa = dswrf_avetoa - uswrf_avetoa - ulwrf_avetoa
 
-Valid 'variable' options: 'Temperature', 'Pressure', 'Specific Humidity', 'Relative Humidity', 'Height', 'Wind Components', 'Precipitable H20' 
+The variable netef_ave is calculated from:
+       dswrf_ave : averaged surface downward shortwave flux
+       dlwrf_ave : surface downward longwave flux
+       ulwrf_ave : surface upward longwave flux
+       uswrf_ave : averaged surface upward shortwave flux
+       shtfl_ave : surface sensible heat flux
+       lhtfl_ave : surface latent heat flux
+       These variables are found in the bfg control files.
+       netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
 
-### inc_logs
-increment descriptive statistics from log files
 
+<<<<<<< HEAD
 **Expected file format**: log
 
 #TODO: add required dictionary inputs and options
@@ -87,3 +142,5 @@ File format generated as bfg file
 innovation statistics for temperature, spechumid, uvwind, and salinity 
 
 **Expected file format**: netcdf 
+=======
+>>>>>>> 607d838 (Started the README.  Added information about the VALID_CONFIG_DICT that)
