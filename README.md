@@ -130,8 +130,8 @@ Mediantime: The mediantime of the harvested tuple is calculated from the
 Longname: The long name entry of the harvested tuple is taken from the variable
           long name on the BFG Netcdf file.
 ```sh
-Region: This entry of the harvested tuple is a nested dictionary. The dictionary contains
-        the following information.
+Region: This entry of the harvested tuple is a nested dictionary. The region dictionary 
+        contains the following information.
         regon name: this is a name given to the region by the user.  It is a required 
                     key word.
         latitude_range(min_latitude,max_latitude) 
@@ -155,18 +155,24 @@ Region: This entry of the harvested tuple is a nested dictionary. The dictionary
                                     }
                     
  ```                   
-
+The daily_bfg.py file returns the following for each variable and statistic requested.
+```sh
+(HarvestedData(
+                                      self.config.harvest_filenames,
+                                       statistic, 
+                                       variable,
+                                       np.float32(value),
+                                       units,
+                                       dt.fromisoformat(median_cftime.isoformat()),
+                                       longname,
+                                       user_regions))
+```
 **Expected file format**: log
 
 **Expected file format**: netcdf 
 
 File format generated as bfg file
 
-#TODO: add required dictionary inputs and options
-
 ### innov_stats_netcdf
 innovation statistics for temperature, spechumid, uvwind, and salinity 
 
-**Expected file format**: netcdf 
-=======
->>>>>>> 607d838 (Started the README.  Added information about the VALID_CONFIG_DICT that)
