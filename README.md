@@ -129,18 +129,32 @@ Mediantime: The mediantime of the harvested tuple is calculated from the
 
 Longname: The long name entry of the harvested tuple is taken from the variable
           long name on the BFG Netcdf file.
-
-Region: This of the harvested tuple is a nested dictionary. The dictionary contains
+```sh
+Region: This entry of the harvested tuple is a nested dictionary. The dictionary contains
         the following information.
         regon name: this is a name given to the region by the user.  It is a required 
                     key word.
-                    latitude_range and longitude range.
-                    '''sh
-                    example: 'region' : {'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},  
-                                         'western_hemis': {'latitude_range': (-90, 90), 'longitude_range': (200,360)},
-                                         'eastern_hemis': {'latitude_range': (-90, 90), 'longitude_range': ( 0, 200) }
-                                        }
-                    '''                    
+        latitude_range(min_latitude,max_latitude) 
+        longitude range(east_lon,west_lon).
+         The following nested dictionaries for region are accepted:
+                    
+              user name of region': {'latitude_range' : (min_lat,max_lat)}
+              The user has not specified a longitude range.  The default will be applied. 
+              default longitude is (360, 0)
+              NOTE:  The longitude values on the bfg files are grid_xt : 0 to 359.7656 by 0.234375 degrees_E  circular
+
+              'user name of region': {'longitude_range' : (min_lon,max_lon}
+               The user has not specified a latitude_range.  The default will be applied.
+               default latitude is (-90,90)
+               NOTE:  The latitude values on the bfg files are grid_yt : 89.82071 to -89.82071 degrees_N
+                    
+               examples: 'region' : {
+                                     'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},
+                                     'western_hemis': 'longitude_range': (200,360)},
+                                     'southern hemis': 'latitude_range': (20,-90)}
+                                    }
+                    
+ ```                   
 
 **Expected file format**: log
 
