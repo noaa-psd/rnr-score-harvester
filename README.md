@@ -63,8 +63,9 @@ Required dictionary inputs: 'variable'
 ### daily_bfg
 The daily_bfg python script contains the information that the user wants
 returned.  It contains the following named tuple.
+```sh
 HarvestedData = namedtuple('HarvestedData', ['filenames',
-                                             'statistic',
+                                             'statistics',
                                              'variable',
                                              'value',
                                              'units',
@@ -72,6 +73,7 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'longname',
                                              'surface_mask', 
                                              'region'])
+```
 
 The example files names are listed above.
 
@@ -79,6 +81,7 @@ The example files names are listed above.
 A list of statistics.  Valid statistics are ['mean', 'variance', 'minimum', 'maximum']
 
 ## Available Harvester variables:
+```sh
 VALID_VARIABLES  = (
                     'lhtfl_ave',# surface latent heat flux (W/m**2)
                     'shtfl_ave', # surface sensible heat flux (W/m**2)
@@ -113,13 +116,33 @@ The variable netef_ave is calculated from:
        These variables are found in the bfg control files.
        netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
 These variables will be updated as more harvesters are written.
+```
+Value:  The value entry of the harvested tuple contains the calculated value of valid 
+        statistic that was requested by the user.
+           
+Units:  The units entry of the harvested tuple contains the untis associated with the
+        requested variable from the BFG Netcdf file.  If no units were given on the 
+        file then a value of None is returned.
+
+Mediantime: The mediantime of the harvested tuple is calculated from the 
+            endpoints of the variable time stamps on the BFG Netcdf file.
+
+Longname: The long name entry of the harvested tuple is taken from the variable
+          long name on the BFG Netcdf file.
+
+Region: This of the harvested tuple is a nested dictionary. The dictionary contains
+        the following information.
+        regon name: this is a name given to the region by the user.  It is a required 
+                    key word.
+                    latitude_range and longitude range.
+                    '''sh
+                    example: 'region' : {'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},  
+                                         'western_hemis': {'latitude_range': (-90, 90), 'longitude_range': (200,360)},
+                                         'eastern_hemis': {'latitude_range': (-90, 90), 'longitude_range': ( 0, 200) }
+                                        }
+                    '''                    
 
 **Expected file format**: log
-
-#TODO: add required dictionary inputs and options
-
-### daily_bfg
-Daily mean statistics from background forecast data 
 
 **Expected file format**: netcdf 
 
