@@ -51,43 +51,33 @@ Example input dictionary:
                     '/filepath/tmp2m_bfg_2023032112_fhr09_control.nc',
                     '/filepath/tmp2m_bfg_2023032118_fhr06_control.nc',
                     '/filepath/tmp2m_bfg_2023032118_fhr09_control.nc',
-                    '/filepath/tmp2m_bfg_2023032200_fhr06_control.nc'],
-    'statistic': ['mean','variance', 'minimum', 'maximum'],
-    'variable': ['ulwrf_avetoa']}
-    'region': { 
-                 'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},
-                 'global': {'latitude_range': (-90.0, 90.0), 'longitude_range': (360.0, 0.0)}
-              }
-            
+                    '/filepath/tmp2m_bfg_2023032200_fhr06_control.nc']
 ```
 
 A request dictionary must provide the harvester_name and filenames. Supported 
 harester_name(s) are provided below, and each harvester may have additional 
 input options or requirements. 
 
-## Supported harvesters
-=======
-filenames : A list of Netcdf bfg files that are output from a model simulation.
-statistic : A list of statistics.  Valid statistics are ['mean', 'variance', 'minimum', 'maximum']
-variable  : A list of valid variables is below.  These variable names are taken from the Netcdf bfg files.
-region    : This is a nested dictionary.  The region name is a required key word.  The following 
-            nested dictionaries are accepted:
-            'user name of region': {'latitude_range' : (min_lat,max_lat)}
-            The user has not specified a longitude range.  The default will be applied. 
-            default longitude is (360, 0)
-            NOTE:  The longitude values on the bfg files are grid_xt : 0 to 359.7656 by 0.234375 degrees_E  circular
-
-            'user name of region': {'longitude_range' : (min_lon,max_lon}
-            The user has not specified a latitude_range.  The default will be applied.
-            default latitude is (-90,90)
-            NOTE:  The latitude values on the bfg files are grid_yt : 89.82071 to -89.82071 degrees_N
-       
-            'user_name of region': {'latitude_range': (min_lat,max_lat), 'longitude_range': (min_lon,max_lon)}
-
-          
-
-
 Required dictionary inputs: 'variable'
+
+### daily_bfg
+The daily_bfg python script contains the information that the user wants
+returned.  It contains the following named tuple.
+HarvestedData = namedtuple('HarvestedData', ['filenames',
+                                             'statistic',
+                                             'variable',
+                                             'value',
+                                             'units',
+                                             'mediantime',
+                                             'longname',
+                                             'surface_mask', 
+                                             'region'])
+
+The example files names are listed above.
+
+## Available Harvester statistics:
+A list of statistics.  Valid statistics are ['mean', 'variance', 'minimum', 'maximum']
+
 ## Available Harvester variables:
 VALID_VARIABLES  = (
                     'lhtfl_ave',# surface latent heat flux (W/m**2)
@@ -122,9 +112,8 @@ The variable netef_ave is calculated from:
        lhtfl_ave : surface latent heat flux
        These variables are found in the bfg control files.
        netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
+These variables will be updated as more harvesters are written.
 
-
-<<<<<<< HEAD
 **Expected file format**: log
 
 #TODO: add required dictionary inputs and options
