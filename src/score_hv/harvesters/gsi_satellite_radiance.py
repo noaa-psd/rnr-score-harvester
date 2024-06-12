@@ -132,7 +132,7 @@ class SatinfoChannelHv(object):
         self.datetime = datetime.strptime(
             self.config.harvest_filename.split('.')[-1].split('_')[0],
             '%Y%m%d%H')
-        self.ensemble_member = self.config.harvest_filename.split('.')[1].split('_')[1]
+        self.ensemble_member = self.config.harvest_filename.split('.')[-1].split('_')[1]
         
         with open(self.config.harvest_filename, encoding="utf-8") as f:
             self.lines = list(f)
