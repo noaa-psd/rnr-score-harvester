@@ -36,9 +36,9 @@ pytest tests
 ```
 
 ## Harvesting metric data with score-hv
-score-hv takes in a yaml or dictionary which specifies the harvester to call, 
+score-hv takes in either a yaml or dictionary via harvester_base.py which specifies the harvester to call, 
 input data files and other inputs to the harvester (such as which variables and
-statistics to harvest)
+statistics to harvest). Example input dictionaries for each harvester are provided in the Available Harvesters section below. Calls can be made directly in the command line or by importing the score-hv module and calling harvester_base.harvest([havester_config filename / config dictionary]). 
 
 For example, the following dictionary could be used to request the global, gridcell area weighted statistics for the temporally (in this case daily)
 weighted netcdf gridcell area data for tmp2m returning the mean, variance, minimum, and maximum.
