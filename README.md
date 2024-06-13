@@ -7,17 +7,21 @@ a larger workflow (e.g., with the score-db and score-monitoring repositories).
 ## Setup and installation
 The repository can be downloaded using git:
 
-`git clone https://github.com/NOAA-PSL/score-hv.git`
+```sh
+git clone https://github.com/NOAA-PSL/score-hv.git
+```
 
 For testing and development, we recommend creating a new python environment 
-(e.g., using [mamba](https://mamba.readthedocs.io/en/latest/index.html)). To 
+(e.g., using [mamba](https://mamba.readthedocs.io/en/latest/index.html) as shown below or other options such as conda). To 
 install the required dependencies into a new environment using the micromamba 
 command-line interface, run the following after installing mamba/micromamba:
 
-`micromamba create -f environment.yml; micromamba activate score-hv-default-env`
+```sh
+micromamba create -f environment.yml; micromamba activate score-hv-default-env
+```
 
-Depending on your use case, install score-hv using one of three methods using 
-(pip)[https://pip.pypa.io/en/stable/],
+Depending on your use case, you can install score-hv using one of three methods using 
+[pip](https://pip.pypa.io/en/stable/),
 
 `pip install . # default installation into active environment`
 
@@ -27,42 +31,83 @@ Depending on your use case, install score-hv using one of three methods using
 
 Verify the installation by running the unit test suite. There are no expected test failures.
 
-`pytest tests`
+```sh
+pytest tests
+```
 
 ## Harvesting metric data with score-hv
 score-hv takes in a yaml or dictionary which specifies the harvester to call, 
-input data files and other inputs to the harvester (such as variables and
+input data files and other inputs to the harvester (such as which variables and
 statistics to harvest)
 
 For example, the following dictionary could be used to request the global, gridcell area weighted statistics for the temporally (in this case daily)
-Weighted Netcdf gridcell area data.
-A netcdf file containing area grid cell weights is required.  
-This file should be included in the git hub repository with the down load 
-of the harvester code.
-
+weighted netcdf gridcell area data for tmp2m returning the mean, variance, minimum, and maximum.
 
 Example input dictionary: 
 ```sh
-{'harvester_name': 'daily_bfg',
-    'filenames' : ['/filepath/tmp2m_bfg_2023032100_fhr09_control.nc',
-                    '/filepath/tmp2m_bfg_2023032106_fhr06_control.nc',
-                    '/filepath/tmp2m_bfg_2023032106_fhr09_control.nc',
-                    '/filepath/tmp2m_bfg_2023032112_fhr06_control.nc',
-                    '/filepath/tmp2m_bfg_2023032112_fhr09_control.nc',
-                    '/filepath/tmp2m_bfg_2023032118_fhr06_control.nc',
-                    '/filepath/tmp2m_bfg_2023032118_fhr09_control.nc',
-                    '/filepath/tmp2m_bfg_2023032200_fhr06_control.nc']
+VALID_CONFIG_DICT = {'harvester_name': 'daily_bfg',
+                        'filenames' : [
+                            '/filepath/tmp2m_bfg_2023032100_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032106_fhr06_control.nc',
+                            '/filepath/tmp2m_bfg_2023032106_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032112_fhr06_control.nc',
+                            '/filepath/tmp2m_bfg_2023032112_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032118_fhr06_control.nc',
+                            '/filepath/tmp2m_bfg_2023032118_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032200_fhr06_control.nc'],
+                     'statistic': ['mean', 'variance', 'minimum', 'maximum'],
+                     'variable': ['tmp2m']}
 ```
 
 A request dictionary must provide the harvester_name and filenames. Supported 
-harester_name(s) are provided below, and each harvester may have additional 
+harvester_name(s) are provided below, and each harvester may have additional 
 input options or requirements. 
 
-Required dictionary inputs: 'variable'
+
+## Available Harvesters
+
+### inc_logs
+increment descriptive statistics from log files
+
+**Expected file format**: log output file
+
+Returns the following named tuple: 
+```sh
+HarvestedData = namedtuple('HarvestedData', ['logfile',
+                                             'cycletime',
+                                             'statistic',
+                                             'variable',
+                                             'value', 
+                                             'units'])
+```
+
+#### Available statistics
+```sh
+VALID_STATISTICS = ('mean', 'RMS')
+```
+
+#### Available variables
+```sh
+VALID_VARIABLES = ['pt_inc', 's_inc', 'u_inc', 'v_inc', 'SSH', 'Salinity',
+                   'Temperature', 'Speed of Currents', 'o3mr_inc', 'sphum_inc',
+                   'T_inc', 'delp_inc', 'delz_inc']
+```
+#### Example dictionary input
+```sh
+VALID_CONFIG_DICT = {'harvester_name': 'inc_logs',
+                     'filename' : '/filepath/calc_atm_inc.out',
+                     'cycletime': datetime(2019,3,21,0),
+                     'statistic': ['mean', 'RMS'],
+                     'variable': ['o3mr_inc', 'sphum_inc', 'T_inc', 'u_inc', 'v_inc',
+                                  'delp_inc', 'delz_inc']}
+```
 
 ### daily_bfg
-The daily_bfg python script contains the information that the user wants
-returned.  It contains the following named tuple.
+The daily_bfg harvester pulls data from the background forecast data files. It calculates daily statistics from the provided files.
+
+A netcdf file containing area grid cell weights is required.  This file should be included in the github repository with the download found in the data folder.
+
+The daily_bfg harvester returns the following named tuple:
 ```sh
 HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'statistics',
@@ -75,12 +120,12 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'region'])
 ```
 
-The example files names are listed above.
+The example filenames are listed in the dictionary example below.
 
-## Available Harvester statistics:
+#### Available Harvester statistics:
 A list of statistics.  Valid statistics are ['mean', 'variance', 'minimum', 'maximum']
 
-## Available Harvester variables:
+#### Available Harvester variables:
 ```sh
 VALID_VARIABLES  = (
                     'lhtfl_ave',# surface latent heat flux (W/m**2)
@@ -89,8 +134,8 @@ VALID_VARIABLES  = (
                     'dswrf_ave', # averaged surface downward shortwave flux (W/m**2)
                     'ulwrf_ave', # surface upward longwave flux (W/m**2)
                     'uswrf_ave', # averaged surface upward shortwave flux (W/m**2)
-                    'netrf_avetoa',#top of atmosphere net radiative flux (SW and LW) (W/m**2)
-                    'netef_ave',#surface energy balance (W/m**2)
+                    'netrf_avetoa', #top of atmosphere net radiative flux (SW and LW) (W/m**2)
+                    'netef_ave', #surface energy balance (W/m**2)
                     'prateb_ave', # surface precip rate (mm weq. s^-1)
                     'soil4', # liquid soil moisture at layer-4 (?)
                     'soilm', # total column soil moisture content (mm weq.)
@@ -99,24 +144,30 @@ VALID_VARIABLES  = (
                     'tmp2m', # 2m (surface air) temperature (K)
                     'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
                     )
+```
 The variable netrf_avetoa is calculated from:
-       dswrf_avetoa:averaged surface downward shortwave flux
+
+       dswrf_avetoa:averaged surface - downward shortwave flux
        uswrf_avetoa:averaged surface upward shortwave flux
        ulwrf_avetoa:surface upward longwave flux
+
        Theses variables are found in the bfg control files.
        netrf_avetoa = dswrf_avetoa - uswrf_avetoa - ulwrf_avetoa
 
 The variable netef_ave is calculated from:
+
        dswrf_ave : averaged surface downward shortwave flux
        dlwrf_ave : surface downward longwave flux
        ulwrf_ave : surface upward longwave flux
        uswrf_ave : averaged surface upward shortwave flux
        shtfl_ave : surface sensible heat flux
        lhtfl_ave : surface latent heat flux
+
        These variables are found in the bfg control files.
        netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
-These variables will be updated as more harvesters are written.
-```
+
+
+#### Returned Results
 Value:  The value entry of the harvested tuple contains the calculated value of valid 
         statistic that was requested by the user.
            
@@ -129,7 +180,7 @@ Mediantime: The mediantime of the harvested tuple is calculated from the
 
 Longname: The long name entry of the harvested tuple is taken from the variable
           long name on the BFG Netcdf file.
-```sh
+
 Region: This entry of the harvested tuple is a nested dictionary. The region dictionary 
         contains the following information.
         regon name: this is a name given to the region by the user.  It is a required 
@@ -154,7 +205,7 @@ Region: This entry of the harvested tuple is a nested dictionary. The region dic
                                      'southern hemis': 'latitude_range': (20,-90)}
                                     }
                     
- ```                   
+                  
 The daily_bfg.py file returns the following for each variable and statistic requested.
 ```sh
 (HarvestedData(
@@ -167,12 +218,42 @@ The daily_bfg.py file returns the following for each variable and statistic requ
                                        longname,
                                        user_regions))
 ```
-**Expected file format**: log
+#### Example Input Dictionary
+Example input dictionary for calling the daily_bfg harvester: 
+```sh
+VALID_CONFIG_DICT = {'harvester_name': 'daily_bfg',
+                        'filenames' : [
+                            '/filepath/tmp2m_bfg_2023032100_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032106_fhr06_control.nc',
+                            '/filepath/tmp2m_bfg_2023032106_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032112_fhr06_control.nc',
+                            '/filepath/tmp2m_bfg_2023032112_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032118_fhr06_control.nc',
+                            '/filepath/tmp2m_bfg_2023032118_fhr09_control.nc',
+                            '/filepath/tmp2m_bfg_2023032200_fhr06_control.nc'],
+                     'statistic': ['mean', 'variance', 'minimum', 'maximum'],
+                     'variable': ['tmp2m']}
+```
 
-**Expected file format**: netcdf 
+### obs_info_log
+observation information for pressure, specific humidity, temperature, height, wind components, precipitable h2o, and relative humidity
 
-File format generated as bfg file
+**Expected file format**: text file 
 
-### innov_stats_netcdf
-innovation statistics for temperature, spechumid, uvwind, and salinity 
+File format generated from NCEPlibs cmpbqm command output 
+
+Required dictionary inputs: 'variable'
+
+#### Available variables 
+Valid 'variable' options: 'Temperature', 'Pressure', 'Specific Humidity', 'Relative Humidity', 'Height', 'Wind Components', 'Precipitable H20' 
+
+#### Example input dictionary
+```sh
+VALID_CONFIG_DICT_TEMP = {
+    'harvester_name': 'obs_info_log',
+    'filename': '/filepath/log_cmpbqm.txt',
+    'variable': 'TEMPERATURE'
+}
+```
+
 
