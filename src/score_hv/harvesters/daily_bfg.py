@@ -13,7 +13,7 @@ from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
 from score_hv.config_base  import ConfigInterface
-from score_hv.stats_utils  import var_statsCatalog
+from score_hv.stats_utils  import VarStatsCatalog  
 from score_hv.region_utils import GeoRegionsCatalog
 
 
@@ -56,7 +56,7 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'units',
                                              'mediantime',
                                              'longname',
-                                             'region'])
+                                             'regions'])
 def get_gridcell_area_data_path():
     return os.path.join(Path(__file__).parent.parent.parent.parent.resolve(),
                         'data', 'gridcell-area' + 
@@ -179,7 +179,7 @@ class DailyBFGConfig(ConfigInterface):
         return self.regions
 
     def set_regions(self):
-        self.regions = self.config_data.get('region')
+        self.regions = self.config_data.get('regions')
         if self.regions is None:   
            self.regions =  DEFAULT_REGION
            print("Setting a default global region ",self.regions)
@@ -259,6 +259,7 @@ class DailyBFGHv(object):
         regions_catalog = GeoRegionsCatalog()
         regions_catalog.add_user_region(self.config.regions)
 
+
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable.
                """
@@ -290,7 +291,7 @@ class DailyBFGHv(object):
               class and returned.
               """
             stats_list = self.config.get_stats()
-            var_stats_instance = var_statsCatalog(stats_list)
+            var_stats_instance = VarStatsCatalog(stats_list)
             """
               The temporal means is a list which will hold the 
               temporal means calculated in this function.
@@ -301,7 +302,7 @@ class DailyBFGHv(object):
             temporal_means = []
             region_index_values = regions_catalog.get_region_coordinates(latitudes,longitudes)
             for name, indices  in region_index_values.items():
-                lat_start_index, lat_end_index, east_index, west_index = indices 
+                lat_start_index, lat_end_index, east_index, west_index = indices
                 """ The variable_data.isel is a xarray method that selects a range of indices
                     along the grid_yt and grid_xt dimension.
                     """
@@ -313,7 +314,7 @@ class DailyBFGHv(object):
                                                         grid_xt=slice(east_index, west_index))
                 value  = np.ma.masked_invalid(var_data.mean(dim='time',skipna=True))
                 temporal_means.append(value)
-                var_stats_instance.calculate_requested_statistics(var_data,weights,value)
+                var_stats_instance.calculate_requested_statistics(weights,value)
             
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
@@ -322,7 +323,7 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-                  
+                      
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
                 
