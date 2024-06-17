@@ -90,39 +90,31 @@ class GeoRegionsCatalog:
             msg = f'The dictionary passed in to add_user_region is empty'
             raise ValueError(msg)
 
-        region_name = None
-        for subkey,subvalue in dictionary.items():
-            region_name = subkey
-        if region_name is None:
-            msg = f'No region name was given.  Please enter a name for your region.'
-            raise ValueError(msg)
+        for region_name, input_dictionary in dictionary.items():
+            if not region_name:
+               msg = 'No region name was given. Please enter a name for your region.'
+               raise ValueError(msg)
 
-        """
-          Here we test to see if user is missing either the longitude or
-          the latitude tuple values by iterating through the dictionary.  
-          If either one is missing then we supply the default values. 
-          """
-        required_keywords = {'latitude_range', 'longitude_range'}
-        input_dictionary = next(iter(dictionary.values()), {})
-        missing_keys = required_keywords - set(input_dictionary.keys())
-        if "longitude_range" in missing_keys:
-           print("missing longitude values. Using defaults of east longitude = 360 and west longitude  = 0")
-           longitude_range = DEFAULT_LONGITUDE_RANGE
-        else: 
-           longitude_range = input_dictionary.get("longitude_range")
+            required_keywords = {'latitude_range', 'longitude_range'}
+            missing_keys = required_keywords - set(input_dictionary.keys())
+            if "longitude_range" in missing_keys:
+               print("Missing longitude values. Using defaults of east longitude = 360 and west longitude = 0")
+               longitude_range = DEFAULT_LONGITUDE_RANGE
+            else:
+               longitude_range = input_dictionary.get("longitude_range")
 
-        if "latitude_range" in missing_keys:    
-           print("Latitude range is missing. Using defaults of minimum latitude = -90, maximum latitude = 90")
-           latitude_range = DEFAULT_LATITUDE_RANGE 
-        else:
-           latitude_range = input_dictionary.get("latitude_range")
-         
-        self.name.append(region_name)
-        self.test_user_latitudes(latitude_range)
-        self.latitude_tuples.append(latitude_range)
-        
-        self.test_user_longitudes(longitude_range)
-        self.longitude_tuples.append(longitude_range)
+            if "latitude_range" in missing_keys:
+                print("Latitude range is missing. Using defaults of minimum latitude = -90, maximum latitude = 90")
+                latitude_range = DEFAULT_LATITUDE_RANGE
+            else:
+                latitude_range = input_dictionary.get("latitude_range")
+
+            self.name.append(region_name)
+            self.test_user_latitudes(latitude_range)
+            self.latitude_tuples.append(latitude_range)
+
+            self.test_user_longitudes(longitude_range)
+            self.longitude_tuples.append(longitude_range)
 
     def get_region_coordinates(self,latitude_values,longitude_values):
         """
