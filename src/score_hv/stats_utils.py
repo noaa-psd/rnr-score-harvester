@@ -15,7 +15,7 @@ import pdb
 from netCDF4 import Dataset
 from pathlib import Path
 
-class var_stats:
+class VarStatsCatalog :
     """
       This allows for the instantiation of the var_stats class.  The 
       requested list of statistics that the user wants is passed into this
@@ -29,12 +29,9 @@ class var_stats:
         self.maximum=[]
         self.stats=stats_list
    
-    def calculate_requested_statistics(self,var_data,gridcell_area_weights,temporal_mean):
+    def calculate_requested_statistics(self,gridcell_area_weights,temporal_mean):
         """This function calls the methods to calculate the statistics
            requested by the user.  
-           var_data:the variable data in an array
-                    opened with xarray in the calling
-                    routine. 
            gridcell_area_weights:the gridcell weights are from the data file
                                  bfg_control_1536x768_20231116.nc.
                                  Located in the data area of score-hv.
@@ -44,7 +41,7 @@ class var_stats:
            """
         for stat in self.stats:
             if stat=="mean":
-               self.calculate_weighted_average(var_data,gridcell_area_weights,temporal_mean) 
+               self.calculate_weighted_average(gridcell_area_weights,temporal_mean) 
             if stat=='variance':
                self.calculate_var_variance(gridcell_area_weights,temporal_mean) 
             if stat=='minimum':
@@ -52,13 +49,11 @@ class var_stats:
             if stat=='maximum':
                self.find_maximum_value(temporal_mean)
 
-    def calculate_weighted_average(self,var_data,gridcell_area_weights,temporal_mean):
+    def calculate_weighted_average(self,gridcell_area_weights,temporal_mean):
         """This function calculates a weighted average  
            for the variable data passed in from
            the calling function calcuate_requested_statistics. 
            Parameters:
-           var_data:the variable data in an array 
-                    opened with xarray. 
            gridcell_area_weights:the gridcell weights are from the data file
                                  bfg_control_1536x768_20231116.nc. 
                                  Located in the data area of score-hv.
