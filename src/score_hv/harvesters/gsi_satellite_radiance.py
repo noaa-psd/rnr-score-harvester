@@ -129,10 +129,23 @@ class SatinfoChannelHv(object):
         
         
         # get the datetime from the input file name
-        self.datetime = datetime.strptime(
-            self.config.harvest_filename.split('.')[-1].split('_')[0],
-            '%Y%m%d%H')
-        self.ensemble_member = self.config.harvest_filename.split('.')[-1].split('_')[1]
+        try: # format is gsistats.YYYYMMDDHH_control
+            self.datetime = datetime.strptime(
+                self.config.harvest_filename.split('.')[-1].split('_')[0],
+                '%Y%m%d%H')
+            self.ensemble_member = self.config.harvest_filename.split('.')[-1].split('_')[1]
+            
+        except ValueError as err:
+            if self.config.harvest_filename[-5:] == 'z.txt':
+                # assume format from NASA
+                self.datetime = datetime.strptime(
+                    self.config.harvest_filename.split('.')[-2],
+                    '%Y%m%d_%Hz'
+                )
+                self.ensemble_member = 'control'
+            else:
+                raise ValueError(f'{self.config.harvest_filename} is not a '
+                 'supported GSI fit file name: cannot return datetime') from err
         
         with open(self.config.harvest_filename, encoding="utf-8") as f:
             self.lines = list(f)
