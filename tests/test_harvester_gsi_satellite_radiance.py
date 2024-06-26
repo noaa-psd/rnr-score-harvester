@@ -58,6 +58,15 @@ VALID_CONFIG_DICT_GEOS_IT_1998 = {'harvester_name':
                                     'std')
                     }
     
+def test_only_stats():
+    valid_config_dict = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
+                         'filename': FIT_FILE_PATH,
+                         'statistics': ('bias_pre_corr', 'bias_post_corr', 'std'),
+    }
+    data = harvest(valid_config_dict)
+    assert data[0].observation_type=='hirs2_tirosn'
+    assert data[-1].observation_type=='ssu_tirosn'
+
 def test_bad_config():
     bad_config_dict = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
                        'filename': FIT_FILE_PATH,
@@ -340,6 +349,7 @@ def test_final_summary():
 '''
  
 def run_all():
+    test_only_stats()
     test_bad_config()
     test_channel_stats_meta()
     test_channel_stats_nobs()
