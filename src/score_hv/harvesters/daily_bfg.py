@@ -1,20 +1,21 @@
 #!/usr/bin/env python
+
 import os
 import sys
 import ast
 import xarray as xr
 import numpy as np
 import cftime
-import netCDF4
 from pathlib import Path
+from netCDF4 import MFDataset
 from datetime import datetime as dt
 from collections import namedtuple
 from dataclasses import dataclass
 from dataclasses import field
 from score_hv.config_base  import ConfigInterface
-from score_hv.stats_utils  import var_statsCatalog
+from score_hv.stats_utils  import VarStatsCatalog  
 from score_hv.region_utils import GeoRegionsCatalog
-
+from score_hv.mask_utils import SurfaceMaskCatalog
 
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
@@ -40,7 +41,7 @@ VALID_VARIABLES  = (
                     'prateb_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
-                    'soill4', # liquid soil moisture at layer-4 (?)
+                    'soil4', # liquid soil moisture at layer-4 (?)
                     'soilm', # total column soil moisture content (mm weq.)
                     'soilt4', # soil temperature unknown layer 4 (K)
                     'tg3', # deep soil temperature (K)
@@ -58,7 +59,7 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'mediantime',
                                              'longname',
                                              'surface_mask',
-                                             'region'])
+                                             'regions'])
 def get_gridcell_area_data_path():
     return os.path.join(Path(__file__).parent.parent.parent.parent.resolve(),
                         'data', 'gridcell-area' + 
@@ -103,7 +104,23 @@ def check_weights(area_weights,total_original_elements,total_regional_elements):
                f'(gridcell area weights) sum does not equal {total_solid_angle} steradians; '  
                'cannot calculate accurate global/regional weighted statistics')
       raise AssertionError(msg) from err 
-    
+
+def replace_fill_and_missing_values(data,missing_value,fill_value):
+    """
+      Replace fill_value and missing_value with np.nan in the given data.
+      This ensures that statistcs will not include missing or fill values.
+
+      Parameters:
+      data : xarray.DataArray. The input data.
+      missing_value : the missing value for the variable from the meta data.
+      fill_value : the fill value for the variable from the meta data.
+      Returns xarray.DataArray : The data with fill_value and missing_value replaced by np.nan.
+      """
+    data = data.where(data != fill_value, other=np.nan)
+    data = data.where(data != missing_value, other=np.nan)
+    return data
+
+
 def calculate_surface_energy_balance(xr_dataset):
     """
        This method calculates the derived variable netef_ave. 
@@ -122,7 +139,11 @@ def calculate_surface_energy_balance(xr_dataset):
     uswrf=xr_dataset['uswrf_ave']
     shtfl=xr_dataset['shtfl_ave']
     lhtfl=xr_dataset['lhtfl_ave']
-    netef_ave_data=dswrf + dlwrf - ulwrf - uswrf - shtfl - lhtfl
+    missing_value = lhtfl.encoding.get('missing_value',None)
+    fill_value = lhtfl.encoding.get('_FillValue',None)
+
+    netef_ave = dswrf + dlwrf - ulwrf - uswrf - shtfl - lhtfl
+    replace_fill_and_missing_values(netef_ave,missing_value,fill_value)
     return(netef_ave_data)
 
 def calculate_toa_radative_flux(xr_dataset):
@@ -139,7 +160,11 @@ def calculate_toa_radative_flux(xr_dataset):
     dswrf=xr_dataset['dswrf_avetoa']
     uswrf=xr_dataset['uswrf_avetoa']
     ulwrf=xr_dataset['ulwrf_avetoa']
-    netrf_avetoa=dswrf - uswrf - ulwrf
+    missing_value = ulwrf.encoding.get('missing_value',None)
+    fill_value = ulwrf.encoding.get('_FillValue',None)
+
+    netrf_avetoa = dswrf - uswrf - ulwrf
+    replace_fill_and_missing_values(netrf_avetoa,missing_value,fill_value)
     return(netrf_avetoa)
 
 @dataclass
@@ -156,8 +181,6 @@ class DailyBFGConfig(ConfigInterface):
         self.harvest_filenames=self.config_data.get('filenames')
         self.set_stats()
         self.set_variables()
-        self.set_units()
-        self.set_longnames()
         self.set_surface_mask()
         self.set_regions()
 
@@ -174,20 +197,22 @@ class DailyBFGConfig(ConfigInterface):
                        "Please reconfigure the input dictionary using only the "
                        "following variables: %r" % (var, VALID_VARIABLES))
                 raise KeyError(msg)
- 
-    def get_units(self):
-        return self.units
+     
+    def get_stats(self):
+        ''' return list of all stat types based on harvest_config '''
+        return self.stats
+    
+    def get_regions(self):
+        ''' return list of regions based on harvest config'''
+        return self.regions
 
-    def set_units(self):
-        self.units = self.config_data.get('units')
+    def set_regions(self):
+        self.regions = self.config_data.get('regions')
+        if self.regions is None:   
+           self.regions =  DEFAULT_REGION
+           print("Setting a default global region ",self.regions)
 
-    def get_longnames(self):
-        return self.longname
-
-    def set_longnames(self):
-        self.longname = self.config_data.get('longname')
-
-    def get_masks(self):
+    def get_surface_mask(self):
         return self.surface_mask
 
     def set_surface_mask(self):
@@ -199,20 +224,7 @@ class DailyBFGConfig(ConfigInterface):
                         f'Valid masks are: "land, ocean , ice.'  
                   raise ValueError(msg)
 
-    def get_regions(self):
-        ''' return list of regions based on harvest config'''
-        return self.regions
-
-    def set_regions(self):
-        self.regions = self.config_data.get('region')
-        if self.regions is None:   
-           self.regions =  DEFAULT_REGION
-           print("Setting a default global region ",self.regions)
-
-    def get_stats(self):
-        ''' return list of all stat types based on harvest_config '''
-        return self.stats
-
+     
     def set_stats(self):
         """
         set the statistics specified by the config dict
@@ -263,138 +275,123 @@ class DailyBFGHv(object):
             then used to determine the multi-file temporal midpoint.
         """
         harvested_data = list()
+        
         xr_dataset = xr.open_mfdataset(self.config.harvest_filenames, 
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
         latitudes = xr_dataset['grid_yt']
         longitudes = xr_dataset['grid_xt']
-        if self.config.surface_mask != None:
-           land_mask = xr_dataset['land']
-           print("in surface mask ",self.config.surface_mask)
-           """
-             The user has requested a mask. Here we keep only the 
-             type of data that the user wants. On the bfg Netcdf file
-             the land mask has: 
-                              0 for ocean
-                              1 for land
-                              2 for ice.
-             The xarray where method in the line below will keep the data 
-             where the land_mask is True and replace the values where it is
-             false with the missing value in the meta data of the bfg file.
-             The "other = value_to_use - This makes sure that the data set 
-             missing value is used where the mask is false.
-             """
-           missing_value = land_mask.encoding.get('missing_value',None)
-           fill_value = land_mask.encoding.get('_FillValue',None)
-    
         gridcell_area_data = xr.open_dataset(get_gridcell_area_data_path())
-        gridcell_area_weights=(gridcell_area_data.variables['area'])
+        gridcell_area_weights = (gridcell_area_data.variables['area'])
         num_lat = len(latitudes.values)
         num_lon = len(longitudes.values)
         total_original_elements = num_lat * num_lon
         total_regional_elements = total_original_elements
         check_weights(gridcell_area_weights,total_original_elements,total_regional_elements) 
         median_cftime = get_median_cftime(xr_dataset)
+        
         """
           We have a least one region so we can instantiate the region catalog.
           The regions were gathered in the get_regions method above in the DailyBFGConfig class.
           and are defined in self.config.regions dictionary.
           """
         user_regions = self.config.regions
-        print(user_regions)
         regions_catalog = GeoRegionsCatalog()
-        regions_catalog.check_region_validity(self.config.regions)
+        regions_catalog.add_user_region(self.config.regions)
 
+        if self.config.surface_mask != None:
+           """ 
+             The user has requested a mask. 
+             The Netcdf variable for the land sea ice mask is land on the bfg control
+             files.  It is define as follows:
+                     0 for ocean  - keep ocean values
+                     1 for land   - keep land values
+                     2 for ice    - keep ice values
+             """
+           land_variable = xr_dataset['land']
+           missing_value = land_variable.encoding.get('missing_value',None)
+           fill_value = land_variable.encoding.get('_FillValue',None)
+           replace_fill_and_missing_values(land_variable,missing_value,fill_value)
+        else:
+           print("we do not have a mask")
+        
         for i, variable in enumerate(self.config.get_variables()):
             """ The first nested loop iterates through each requested variable.
                """
             namelist=self.config.get_variables()
             var_name=namelist[i]
-            print("var_name  ",var_name)
             if var_name == "netef_ave":
                  variable_data=calculate_surface_energy_balance(xr_dataset)
-                 longname[i] = "surface energy balance"
-                 units[i] = "W/m**2"
+                 longname="surface energy balance"
+                 units="W/m**2"
             elif var_name == "netrf_avetoa":
                  variable_data=calculate_toa_radative_flux(xr_dataset)
-                 longname[i] ="Top of atmosphere net radiative flux"
-                 units[i] ="W/m**2"
-            else:
-                 variable_data=xr_dataset[var_name] 
-                 longname = self.config.get_longnames() 
+                 longname="Top of atmosphere net radiative flux"
+                 units="W/m**2"
+            else:     
+                 variable_data = xr_dataset[variable]
+                 missing_value = variable_data.encoding.get('missing_value',None)
+                 fill_value = variable_data.encoding.get('_FillValue',None)
+                 variable_data = replace_fill_and_missing_values(variable_data,\
+                                                                missing_value,fill_value)
                  if 'long_name' in variable_data.attrs:
-                     longname[i]=variable_data.attrs['long_name']
+                     longname=variable_data.attrs['long_name']
                  else:
-                     longname[i] = "None"
-
-                 units = self.config.get_units()
+                     longname="None"
                  if 'units' in variable_data.attrs:
-                     units[i] = variable_data.attrs['units']
+                     units=variable_data.attrs['units']
                  else:
-                     units[i] = "None"
+                     units="None"
             """
-              Get the statistics requested by the user.
+              Get the statistics requested by the user.  
               Instantiate the stats class in stats_util.py.
               Initialize the temporal_means list.  The
               temporal_means are calculated in the stats_util.py
               class and returned.
               """
             stats_list = self.config.get_stats()
-            var_stats_instance = var_statsCatalog(stats_list)
+            var_stats_instance = VarStatsCatalog(stats_list)
             """
-              The temporal means is a list which will hold the
+              The temporal means is a list which will hold the 
               temporal means calculated in this function.
-              The temporal means are passed into the stats_util
+              The temporal means are passed into the stats_util 
               class in order to calculate the statistics requested
               by the user.
               """
             temporal_means = []
             region_index_values = regions_catalog.get_region_coordinates(latitudes,longitudes)
+            print(region_index_values)
+            sys.exit(0)
             for name, indices  in region_index_values.items():
                 lat_start_index, lat_end_index, east_index, west_index = indices
-                print(lat_start_index,"  ", lat_end_index,"  ", east_index,"  ", west_index)
+                if lat_end_index + 1 > num_lat:
+                   lat_end_index = num_lat-1
+                
                 """ The variable_data.isel is a xarray method that selects a range of indices
                     along the grid_yt and grid_xt dimension.
                     """
-                var_region_data = variable_data.isel(time=slice(None), \
-                                            grid_yt=slice(lat_start_index,lat_end_index), \
+                var_data = variable_data.isel(time=slice(None), \
+                                            grid_yt=slice(lat_start_index,lat_end_index+1), \
                                             grid_xt=slice(east_index,west_index))
-
-                """Replace _FillValue and the missing value of the requested var with NaN.  This assures
-                   that the skipna will skip all missing and fill values. So _FillValues and missing values
-                   will not be included when calculating the temporal_mean.
-                    """
-                var_region_data = var_region_data.where(var_region_data != fill_value, other=np.nan)
-                themax = np.ma.masked_equal(var_region_data, missing_value).max() 
-                var_region_data = var_region_data.where(var_region_data != missing_value, other=np.nan)
-                themax = np.ma.masked_equal(var_region_data, missing_value).max() 
-                weights = gridcell_area_weights.isel(grid_yt=slice(lat_start_index,lat_end_index), \
-                                                     grid_xt=slice(east_index, west_index))
+                
+                weights=gridcell_area_data['area'].isel(grid_yt=slice(lat_start_index,lat_end_index + 1), \
+                                                        grid_xt=slice(east_index, west_index))
                 if self.config.surface_mask is not None:
-                    land_mask_region = land_mask.isel(time=slice(None), \
-                                            grid_yt=slice(lat_start_index,lat_end_index), \
+                    land_mask_region = land_variable.isel(time=slice(None), \
+                                            grid_yt=slice(lat_start_index,lat_end_index+1), \
                                             grid_xt=slice(east_index,west_index))
-                    masked_region_data = var_region_data.where(land_mask_region == 1, other=np.nan)
+                    if 'land' in self.config.surface_mask:
+                       var_data = var_data.where(land_mask_region == 1, other=np.nan)
+                    elif 'ocean' in self.config.surface_mask:
+                       var_data = var_data.where(land_mask_region == 0, other=np.nan)
                     land_mask_first_time = land_mask_region[0,:,:]
-                    masked_weights = weights.where(land_mask_first_time == 1, 0) 
-                    """
-                      The following line computes the mean along the dimension named 'time'. 
-                      The skipna=True argument ensures that NaN values are ignored 
-                      in the calculation.
-                      """
-                    mean_array = masked_region_data.mean(dim='time', skipna=True)
-                    """
-                      The following line masks any NaN's or invalid array values.  
-                      """
-                    mean_array_masked = np.ma.masked_invalid(mean_array)
-                    temporal_means.append(mean_array_masked)
-                    var_stats_instance.calculate_requested_statistics(masked_weights,mean_array_masked)
-                else:
-                    mean_array = var_region_data.mean(dim='time', skipna=True)                                   
-                    temporal_means.append(mean_array)
-                    var_stats_instance.calculate_requested_statistics(weights,mean_array)
+                    weights = weights.where(land_mask_first_time == 1, 0)
 
+                value  = np.ma.masked_invalid(var_data.mean(dim='time',skipna=True))
+                temporal_means.append(value)
+                var_stats_instance.calculate_requested_statistics(weights,value)
+            
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic and regions if the user has requested geographical
@@ -402,7 +399,8 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-                    print(value)                    
+                    print("in ",value)
+                    
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
                 
@@ -411,18 +409,18 @@ class DailyBFGHv(object):
                     
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
-                
+
                 harvested_data.append(HarvestedData(
                                       self.config.harvest_filenames,
-                                      statistic, 
-                                      variable,
-                                      np.float32(value),
-                                      units,
-                                      dt.fromisoformat(median_cftime.isoformat()),
-                                      longname,
-                                      self.config.surface_mask,
-                                      user_regions))
-
+                                       statistic, 
+                                       variable,
+                                       np.float32(value),
+                                       units,
+                                       dt.fromisoformat(median_cftime.isoformat()),
+                                       longname,
+                                       self.config.surface_mask,
+                                       user_regions))
+       
         gridcell_area_data.close()
         xr_dataset.close()
         return harvested_data
