@@ -31,10 +31,7 @@ DEFAULT_LONGITUDE_RANGE = (360, 0)
 class GeoRegionsCatalog:
     def __init__(self):
         """
-          Here we initalize the region class. 
-          The variable unmasked_regions is set to all. Meaning, there is
-          no masking of land, ocean or ice.  This varaible is set in the
-          method check_region_validity in this script below. 
+          Here we initalize the region class as an empty dictionary. 
           """
         self.name = []
         self.latitude_tuples = []
@@ -76,7 +73,8 @@ class GeoRegionsCatalog:
                  f'west_lon: {west_lon}'
            raise ValueError(msg)
 
-    def check_region_validity(self,dictionary):
+
+    def add_user_region(self,dictionary):
         """
           Parameters:
           dictionary - The dictionary should contain the following keys.
@@ -84,45 +82,38 @@ class GeoRegionsCatalog:
                        latitude_range - a tuple of min and max latitude values
                        longitude_range - a tuple of east and west longitude values.
           If the dictionay is empty we exit with a message.             
+          If the region name key word is missing then we exit with a message.             
           If either the latitude or the longitude keys are missing we supply
           a default.
-
-          This method will check to see if the user wants to apply a mask.
-          The variable unmasked_regions is set to the area that the user 
-          wants to keep.  It is initialized to 'all', meaning that the 
-          user does not want to mask out any areas.
-          """
+        """
         if not dictionary:
-            msg = f'The dictionary passed in to check_region_validity is empty'
+            msg = f'The dictionary passed in to add_user_region is empty'
             raise ValueError(msg)
 
-        print("in check region validity")
+        for region_name, input_dictionary in dictionary.items():
+            if not region_name:
+               msg = 'No region name was given. Please enter a name for your region.'
+               raise ValueError(msg)
 
-        for region_name ,subvalue in dictionary.items():
-            """
-             Here we test to see if user is missing either the longitude or
-             the latitude tuple values by iterating through the dictionary.  
-             If either one is missing then we supply the default values.
-             If unmasked_regions is either 'land','ocean' or 'ice' then there 
-             will not be latitude or longitute region tuples. 
-             """
-            if "longitude_range" not in subvalue:
-                print("missing longitude values. Using defaults of east longitude = 360 and west longitude  = 0")
-                longitude_range = DEFAULT_LONGITUDE_RANGE
-            else: 
-                longitude_range = subvalue.get("longitude_range")
-            self.test_user_longitudes(longitude_range)
-
-            if "latitude_range" not in subvalue:    
-                print("Latitude range is missing. Using defaults of minimum latitude = -90, maximum latitude = 90")
-                latitude_range = DEFAULT_LATITUDE_RANGE 
+            required_keywords = {'latitude_range', 'longitude_range'}
+            missing_keys = required_keywords - set(input_dictionary.keys())
+            if "longitude_range" in missing_keys:
+               print("Missing longitude values. Using defaults of east longitude = 360 and west longitude = 0")
+               longitude_range = DEFAULT_LONGITUDE_RANGE
             else:
-                latitude_range = subvalue.get("latitude_range")
-            self.test_user_latitudes(latitude_range)
-            print("all passed")
-            
+               longitude_range = input_dictionary.get("longitude_range")
+
+            if "latitude_range" in missing_keys:
+                print("Latitude range is missing. Using defaults of minimum latitude = -90, maximum latitude = 90")
+                latitude_range = DEFAULT_LATITUDE_RANGE
+            else:
+                latitude_range = input_dictionary.get("latitude_range")
+
             self.name.append(region_name)
+            self.test_user_latitudes(latitude_range)
             self.latitude_tuples.append(latitude_range)
+
+            self.test_user_longitudes(longitude_range)
             self.longitude_tuples.append(longitude_range)
 
     def get_region_coordinates(self,latitude_values,longitude_values):
@@ -162,7 +153,7 @@ class GeoRegionsCatalog:
                We have two cases to consider here. 
                Ranges that do not cross the Prime Meridian and ranges that do cross the 
                prime meridian. Our longitude array is 0 to 360 degrees east circular.
-                  """
+               """
             east_lon,west_lon = self.longitude_tuples[ireg]
             if east_lon <= west_lon:
                 #region crosses the prime meridian.
@@ -174,4 +165,5 @@ class GeoRegionsCatalog:
            
             region_indices[name] = (lat_start_index,lat_end_index,lon_start_index,lon_end_index)
         return region_indices 
+
 
