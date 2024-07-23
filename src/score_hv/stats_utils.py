@@ -9,6 +9,7 @@ The functions generally take the following two input variables:
     same shape as xarray_variable
 """
 import sys,os
+import xarray as xr
 import numpy as np
 import pytest
 import pdb
@@ -29,41 +30,42 @@ class VarStatsCatalog :
         self.maximum=[]
         self.stats=stats_list
    
-    def calculate_requested_statistics(self,gridcell_area_weights,temporal_mean):
+    def calculate_requested_statistics(self,weights,temporal_mean):
         """This function calls the methods to calculate the statistics
-           requested by the user.  
-           gridcell_area_weights:the gridcell weights are from the data file
-                                 bfg_control_1536x768_20231116.nc.
-                                 Located in the data area of score-hv.
+           requested by the user. 
+           Parameters:
+           weights: The weights are the normalized weights
+                    based on the solid angle calculation in the 
+                    calling routine. 
            temporal_mean:the temporal means array that is calculated in
                          the calling function.                      
            Return:Nothing is returned.
            """
         for stat in self.stats:
             if stat=="mean":
-               self.calculate_weighted_average(gridcell_area_weights,temporal_mean) 
+               self.calculate_weighted_average(weights,temporal_mean) 
             if stat=='variance':
-               self.calculate_var_variance(gridcell_area_weights,temporal_mean) 
+               self.calculate_var_variance(weights,temporal_mean) 
             if stat=='minimum':
                self.find_minimum_value(temporal_mean)               
             if stat=='maximum':
                self.find_maximum_value(temporal_mean)
 
-    def calculate_weighted_average(self,gridcell_area_weights,temporal_mean):
+    def calculate_weighted_average(self,weights,temporal_mean):
         """This function calculates a weighted average  
            for the variable data passed in from
            the calling function calcuate_requested_statistics. 
            Parameters:
-           gridcell_area_weights:the gridcell weights are from the data file
-                                 bfg_control_1536x768_20231116.nc. 
-                                 Located in the data area of score-hv.
+           weights: The weights are the normalized weights
+                    based on the solid angle calculation in the 
+                    calling routine. 
            temporal_mean:the temporal means array that is calculated in
                          the calling function.
            """
-        value = np.ma.average(temporal_mean,weights=gridcell_area_weights)
+        value = np.sum(weights * temporal_mean).item()
         self.weighted_averages.append(value)
 
-    def calculate_var_variance(self,gridcell_area_weights,temporal_mean):
+    def calculate_var_variance(self,weights,temporal_mean):
         """
           This function returns the gridcell weighted variance of the requested variables using
           the following formula:
@@ -71,19 +73,30 @@ class VarStatsCatalog :
           where sum_R represents the summation for each value x_i over the region of 
           interest R with normalized gridcell area weights w_i and weighted mean xbar
           Parameters:
-          gridcell_area_weights:the gridcell weights are from the data file
-                                 bfg_control_1536x768_20231116.nc.
-                                 Located in the data area of score-hv.
+          weights: The weights are the normalized weights
+                   based on the solid angle calculation in the 
+                   calling routine. 
            temporal_mean:the temporal means array that is calculated in
                          the calling function. 
           """
-        norm_weights = gridcell_area_weights/np.sum(gridcell_area_weights)
-        
-        weighted_average = np.ma.average(temporal_mean,weights=gridcell_area_weights)
-        temporal_means_array = np.array(temporal_mean)
-        value=-weighted_average**2 + np.ma.sum( temporal_means_array**2 * norm_weights)
-        self.variances.append(value)
+        weights = np.array(weights)
+        temporal_mean = np.array(temporal_mean)
+    
+        # Ensure the weights and temporal_mean have compatible shapes
+        try:
+            assert weights.shape == temporal_mean.shape
+        except AssertionError:
+           msg = f'Assertion failed: The shape of the weights array {weights.shape}' \
+                 f'is not equal to the shape of the temporal mean array {temporal_mean.shape}'
+           raise ValueError(msg)
 
+        # Calculate the weighted mean (xbar) for the two-dimensional array
+        weighted_sum = np.sum(weights * temporal_mean)
+        sum_of_weights = np.sum(weights)
+        weighted_average = weighted_sum / sum_of_weights
+        value = np.sum(weights * (temporal_mean - weighted_average) ** 2) / sum_of_weights 
+        self.variances.append(value)
+        
     def find_minimum_value(self,temporal_mean):
         """
           This function finds the minimum values of the temporal_means array 
