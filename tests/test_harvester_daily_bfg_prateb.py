@@ -100,20 +100,19 @@ def test_global_mean_values_offline(tolerance=0.001):
 
 def test_gridcell_variance(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-   
     for harvested_data in data1[0]:  
-        has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
+        has_region = any(hasattr(data, 'regions') for data in data1) #Returns a boolean.
         if has_region:
-           variances = [1.48348705705598e-08, 4.3899346663891055e-09, 2.452054630702822e-09, \
-                        4.404340940629795e-09, 5.7414012487690275e-09,3.4993706919644485e-09, \
-                        7.161997716865958e-09] 
+           variances = [1.482636074512706e-08, 4.387809931485424e-09, 2.4515670413943818e-09, \
+                        4.404340892598467e-09, 5.738487271970866e-09, 5.961559044830038e-09, \
+                        7.161997909885633e-09] 
            for i, harvested_tuple in enumerate(data1):
                 if harvested_tuple.statistic == 'variance':
                    num_values = len(harvested_tuple.value)
                    for inum in range(num_values):
                        assert variances[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
                        assert variances[inum] >= (1 - tolerance) * harvested_tuple.value[inum]
-
+      
 def test_gridcell_min(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
      
