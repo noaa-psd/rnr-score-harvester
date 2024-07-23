@@ -16,7 +16,6 @@ from score_hv.config_base  import ConfigInterface
 from score_hv.stats_utils  import VarStatsCatalog  
 from score_hv.region_utils import GeoRegionsCatalog
 
-
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
 VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'east_lon', 'west_lon')
@@ -84,24 +83,34 @@ def get_median_cftime(xr_dataset):
                                          'hours since 1951-01-01 00:00:00')
     return(median_cftime) 
 
-def check_weights(area_weights,total_original_elements,total_regional_elements):
+def check_array_dimensions(region_variable,region_weights):
     """
-      This method checks the sum of the weights to make sure the sum
-      meets a certain threshold.
+      This method makes sure the dimensions numbers of grid_ny
+      and grid_ny are the same after subsetting the region_variable and 
+      region weights into the region requested by the user.  
+      If they are not the same we need to exit the program.  
+      The calculation of the statistics will fail. The time dimensin
+      for the weights will be 1.  The time dimension for the region
+      variable will equal the number of input bfg netcdf files read in.
+      The time dimension inequality is handled later in the code.
       """
-    sumweights = area_weights.sum()
-    ratio = total_regional_elements / total_original_elements 
-    total_solid_angle = ratio * 4 * np.pi 
-    try:
-      assert sumweights >= 0.999 * total_solid_angle  
-      assert sumweights <= 1.001 * total_solid_angle
-
-    except AssertionError as err:
-      msg = (f'{gridcell_area_weights}\n'
-               f'(gridcell area weights) sum does not equal {total_solid_angle} steradians; '  
-               'cannot calculate accurate global/regional weighted statistics')
-      raise AssertionError(msg) from err 
+    variable_dims = region_variable.dims
+    weight_dims = region_weights.dims
     
+    try:
+        assert variable_dims[1] == weight_dims[1]
+    except AssertionError:
+        msg = f'Assertion failed: The number of latitudes in the weights array {weight_dims[1]}' \
+              f'is not equal to the number of latitudes the variable array {variable.dims[1]}'        
+        raise ValueError(msg) 
+
+    try:
+        assert variable_dims[2] == weight_dims[2]
+    except AssertionError:
+        msg = f'Assertion failed: The number of longitudes in the weights array {weight_dims[2]}' \
+              f'is not equal to the number of longitudes the variable array {variable.dims[2]}'        
+        raise ValueError(msg) 
+
 def calculate_surface_energy_balance(xr_dataset):
     """
        This method calculates the derived variable netef_ave. 
@@ -239,24 +248,22 @@ class DailyBFGHv(object):
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
-        latitudes=xr_dataset['grid_yt']
-        longitudes=xr_dataset['grid_xt']
-        gridcell_area_data=xr.open_dataset(get_gridcell_area_data_path())
-        gridcell_area_weights=(gridcell_area_data.variables['area'])
-        num_lat = len(latitudes.values)
-        num_lon = len(longitudes.values)
-        total_original_elements = num_lat * num_lon
-        total_regional_elements = total_original_elements
-        check_weights(gridcell_area_weights,total_original_elements,total_regional_elements) 
+        latitudes = xr_dataset['grid_yt']
+        longitudes = xr_dataset['grid_xt']
+        gridcell_area_data = xr.open_dataset(get_gridcell_area_data_path())
+        gridcell_area_weights = (gridcell_area_data.variables['area'])
+        """
+          This sum is needed for the calculation of the weighted sum of the regional
+          variable data.
+          """
+        sum_global_weights = gridcell_area_data['area'].sum()
         median_cftime = get_median_cftime(xr_dataset)
-
         """
           We have a least one region so we can instantiate the region catalog.
           The regions were gathered in the get_regions method above in the DailyBFGConfig class.
           and are defined in self.config.regions dictionary.
           """
-        user_regions = self.config.regions
-        regions_catalog = GeoRegionsCatalog()
+        regions_catalog = GeoRegionsCatalog(xr_dataset)
         regions_catalog.add_user_region(self.config.regions)
 
 
@@ -300,22 +307,60 @@ class DailyBFGHv(object):
               by the user.
               """
             temporal_means = []
-            region_index_values = regions_catalog.get_region_coordinates(latitudes,longitudes)
-            for name, indices  in region_index_values.items():
-                lat_start_index, lat_end_index, east_index, west_index = indices
-                """ The variable_data.isel is a xarray method that selects a range of indices
-                    along the grid_yt and grid_xt dimension.
-                    """
-                var_data = variable_data.isel(time=slice(None), \
-                                            grid_yt=slice(lat_start_index,lat_end_index+1), \
-                                            grid_xt=slice(east_index,west_index))
+            for iregion in range(len(self.config.regions)):
+                region_variable_data = regions_catalog.get_region_data(iregion, \
+                                                                       variable_data)
+                region_weights = regions_catalog.get_region_data(iregion,gridcell_area_data)
+                """
+                  region_weights is an xarray Dataset.  The following line converts the
+                  xarray Dataset to a singe xarray DataArray.
+                  """
+                region_weights = region_weights.to_array()
+                check_array_dimensions(region_variable_data,region_weights)
+                sum_region_weights = region_weights.sum()
+                """
+                  The line region_solid_angle calculates the sum of weights for a region, 
+                  adjusted by the ratio of the region's weights to the 
+                  sum of global weights, and then scaled by the 
+                  solid angle of a sphere (which is 4 * np.pi)
+                  The sum_global_weights is calculated above. 
+                  """
+                region_solid_angle = (sum_region_weights / sum_global_weights) * 4 * np.pi
                 
-                weights=gridcell_area_data['area'].isel(grid_yt=slice(lat_start_index,lat_end_index + 1), \
-                                                        grid_xt=slice(east_index, west_index))
-                value  = np.ma.masked_invalid(var_data.mean(dim='time',skipna=True))
+                """
+                  Calculate the solid angle for each weight in the region.
+                  Make sure the calculated region solid angle matches the sum of 
+                  the individual weights' solid angles. If it does not we need to 
+                  exit with an error.
+                  """
+                region_solid_angle_sum_of_weights = (region_weights / sum_global_weights) * 4 * np.pi
+                if not np.isclose(region_solid_angle, region_solid_angle_sum_of_weights.sum()):
+                   raise ValueError(f"The region solid angle {region_solid_angle}" 
+                                    f"does not match the sum of the weights" 
+                                    f"{region_solid_angle_sum_of_weights.sum()}.")
+                # Normalizes the weights based on the solid angle sum.  
+                normalized_weights = region_solid_angle_sum_of_weights / region_solid_angle_sum_of_weights.sum() 
+                
+                # Calculate the temporal mean of the region variable data, skipping NaN values
+                region_data_temporal_mean = region_variable_data.mean(dim='time', skipna=True)
+                # Mask any invalid values (NaN or Inf) in the temporal mean
+                value = np.ma.masked_invalid(region_data_temporal_mean)
                 temporal_means.append(value)
-                var_stats_instance.calculate_requested_statistics(weights,value)
-            
+                """
+                   Here we pass the normalized_weights and the temporal_mean into the 
+                   stats class.  
+                   Note: we need to "squeeze" the normalized_weights down to just 
+                         the numnx and numny value to get rid of the time dimension. 
+                         This is done because the temporal_means array does not have the 
+                         time dimension. The stats class will give an error when calculating
+                         the weighted mean and the variance of the data if the dimensions
+                         of the normalized weights and temporal mean are different.
+                   """
+                if normalized_weights.shape[0] == 1:
+                   normalized_weights = normalized_weights.squeeze(axis=0)
+                   
+                var_stats_instance.calculate_requested_statistics(normalized_weights,value)
+
             for j, statistic in enumerate(self.config.get_stats()):
                 """ The second nested loop iterates through each requested 
                     statistic and regions if the user has requested geographical
@@ -323,10 +368,10 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-                      
+
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
-                
+
                 elif statistic == 'maximum':
                     value = var_stats_instance.maximum
                     
@@ -341,7 +386,7 @@ class DailyBFGHv(object):
                                        units,
                                        dt.fromisoformat(median_cftime.isoformat()),
                                        longname,
-                                       user_regions))
+                                       self.config.regions))
        
         gridcell_area_data.close()
         xr_dataset.close()
