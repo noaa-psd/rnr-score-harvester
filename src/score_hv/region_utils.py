@@ -29,13 +29,18 @@ DEFAULT_LATITUDE_RANGE  = (-90, 90)
 DEFAULT_LONGITUDE_RANGE = (360, 0)
 
 class GeoRegionsCatalog:
-    def __init__(self):
+    def __init__(self,dataset):
         """
-          Here we initalize the region class as an empty dictionary. 
+          Here we initalize the region class as a dictionary.
+          Parameter: datset - This is a dataset that has been 
+                              opened with xarray.
           """
         self.name = []
         self.latitude_tuples = []
         self.longitude_tuples = []
+        self.region_indices = []
+        self.latitude_values = dataset['grid_yt'].values
+        self.longitude_values = dataset['grid_xt'].values
 
     def test_user_latitudes(self,latitude_range):
         """
@@ -115,8 +120,9 @@ class GeoRegionsCatalog:
 
             self.test_user_longitudes(longitude_range)
             self.longitude_tuples.append(longitude_range)
+            self.region_indices.append(None)
 
-    def get_region_coordinates(self,latitude_values,longitude_values):
+    def get_region_indices(self,region_index):
         """
           This method calculates the indices in the latitude values and
           longitude values that are passed in from the calling function. 
@@ -124,46 +130,60 @@ class GeoRegionsCatalog:
           method, add_user_region, above are used to determine the 
           indices.
           Parameters:
-          - latitude_values:  These are the array of latitude values from 
-            the bfg files opened with xarray.
-          - longitude values:  These are the array of longitude values from 
-            the bfg files opened with xarray.
           - returns: The lat_indices and lon_indices.  These lists 
             return the start and end indices as tuples. 
             """
+        num_lon = len(self.longitude_values)
+        num_lat = len(self.latitude_values)
+        step_size = self.longitude_values[num_lon-1]/num_lon
 
-        num_lon = len(longitude_values)
-        num_lat = len(latitude_values)
-        step_size = longitude_values[num_lon-1]/num_lon
-        region_indices = {}
+        # Find latitude indices within the region.
+        name = self.name[region_index]
+        min_lat,max_lat = self.latitude_tuples[region_index]
+        latitude_indices = [index for index, lat in enumerate(self.latitude_values) if min_lat <= lat <= max_lat]
+        if latitude_indices:
+           lat_start_index = latitude_indices[0]
+           lat_end_index = latitude_indices[-1]
+        else:
+           msg=f"No latitude values were found within the specified range of {min_lat} and {max_lat}."
+           raise KeyError(msg)
 
-        for ireg in range(len(self.name)):
-            # Find latitude indices within the region.
-            name = self.name[ireg]
-            min_lat,max_lat = self.latitude_tuples[ireg]
-            latitude_indices = [index for index, lat in enumerate(latitude_values) if min_lat <= lat <= max_lat]
-            if latitude_indices:
-               lat_start_index = latitude_indices[0]
-               lat_end_index = latitude_indices[-1]
-            else:
-               msg=f"No latitude values were found within the specified range of {min_lat} and {max_lat}."
-               raise KeyError(msg)
+        """Find longitue indices within the region.
+           We have two cases to consider here. 
+           Ranges that do not cross the Prime Meridian and ranges that do cross the 
+           prime meridian. Our longitude array is 0 to 360 degrees east circular.
+           """
+        east_lon,west_lon = self.longitude_tuples[region_index]
+        if east_lon <= west_lon:
+           #region crosses the prime meridian.
+           lon_start_index = int(east_lon / step_size)
+           lon_end_index = int(west_lon / step_size)
+        else:
+           lon_start_index = int(west_lon / step_size) 
+           lon_end_index = int(east_lon / step_size)
+         
+        self.region_indices[region_index] = (lat_start_index,lat_end_index,lon_start_index,lon_end_index)
 
-            """Find longitue indices within the region.
-               We have two cases to consider here. 
-               Ranges that do not cross the Prime Meridian and ranges that do cross the 
-               prime meridian. Our longitude array is 0 to 360 degrees east circular.
-               """
-            east_lon,west_lon = self.longitude_tuples[ireg]
-            if east_lon <= west_lon:
-                #region crosses the prime meridian.
-                lon_start_index = int(east_lon / step_size)
-                lon_end_index = int(west_lon / step_size)
-            else:
-                lon_start_index = int(west_lon / step_size) 
-                lon_end_index = int(east_lon / step_size)
-           
-            region_indices[name] = (lat_start_index,lat_end_index,lon_start_index,lon_end_index)
-        return region_indices 
+    def get_region_data(self,region_index,data):
+        """ The data.isel is a xarray method that selects a range of indices
+            along the grid_yt and grid_xt dimension.
+            """
+        if self.region_indices[region_index] is None:
+           self.get_region_indices(region_index)
+           lat_start_index, lat_end_index, east_index, west_index = self.region_indices[region_index]
+        else:
+           lat_start_index, lat_end_index, east_index, west_index = self.region_indices[region_index] 
 
+        print("in regions ",lat_start_index,"  ",lat_end_index,"  ",east_index,"  ",west_index)   
+        # Check dimensions of the specific variable in the dataset
+        var_dims = data.dims
+        if 'time' in var_dims:
+            region_data = data.isel(time=slice(None),
+                                                   grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                                   grid_xt=slice(east_index, west_index))
+        else:
+            region_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                                   grid_xt=slice(east_index, west_index))        
+        return(region_data)
 
+         
