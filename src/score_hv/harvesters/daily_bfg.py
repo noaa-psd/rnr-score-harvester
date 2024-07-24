@@ -38,10 +38,10 @@ VALID_VARIABLES  = (
                     'prateb_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
-                    #'soil4', # liquid soil moisture at layer-4 (?)
-                    #'soilm', # total column soil moisture content (mm weq.)
-                    #'soilt4', # soil temperature unknown layer 4 (K)
-                    #'tg3', # deep soil temperature (K)
+                    'soil4', # liquid soil moisture at layer-4 (?)
+                    'soilm', # total column soil moisture content (mm weq.)
+                    'soilt4', # soil temperature unknown layer 4 (K)
+                    'tg3', # deep soil temperature (K)
                     'tmp2m', # 2m (surface air) temperature (K)
                     #'tmpsfc', # surface temperature (K)
                     'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
@@ -89,27 +89,66 @@ def check_array_dimensions(region_variable,region_weights):
       and grid_ny are the same after subsetting the region_variable and 
       region weights into the region requested by the user.  
       If they are not the same we need to exit the program.  
-      The calculation of the statistics will fail. The time dimensin
-      for the weights will be 1.  The time dimension for the region
-      variable will equal the number of input bfg netcdf files read in.
-      The time dimension inequality is handled later in the code.
+      The calculation of the statistics will fail. 
+      Parameters:
+      region_variable - The variable data from the bfg data files
+                        that corresponds to the region requested bye
+                        the user.
+      region_weights - The weights from the weight files that corresponds to 
+                       the region requested by the user.
+      Return - nothing is returned.                 
       """
-    variable_dims = region_variable.dims
-    weight_dims = region_weights.dims
-    
-    try:
-        assert variable_dims[1] == weight_dims[1]
-    except AssertionError:
-        msg = f'Assertion failed: The number of latitudes in the weights array {weight_dims[1]}' \
-              f'is not equal to the number of latitudes the variable array {variable.dims[1]}'        
-        raise ValueError(msg) 
+    vardims = region_variable.dims
+    for dim in vardims:
+        if dim in region_variable.coords and dim in region_weights.coords:
+           var_coord_values = region_variable.coords[dim].size
+           weight_coord_values = region_weights.coords[dim].size
+           try:
+                assert var_coord_values == weight_coord_values
+           except AssertionError:
+                msg = (f"Mismatch in coordinate sizes for dimension '{dim}':\n"
+                       f"region_variable '{dim}' size: {var_coord_values}\n"
+                       f"region_weights '{dim}' size: {weight_coord_values}")
+                raise ValueError(msg)           
 
-    try:
-        assert variable_dims[2] == weight_dims[2]
-    except AssertionError:
-        msg = f'Assertion failed: The number of longitudes in the weights array {weight_dims[2]}' \
-              f'is not equal to the number of longitudes the variable array {variable.dims[2]}'        
-        raise ValueError(msg) 
+def calculate_and_normalize_solid_angle(sum_global_weights,region_weights):
+    """
+       This method calculates the solid angle for the regional weights
+       and normalizes them.
+       Parameters:
+       sum_global_weights - The sum_of_global_weights is is the sum of the 
+                            variable "area" in the gridcell area data file.
+       region_weights - The region weights are the weights the 
+                        gridcell_area data file that corresponds to the region
+                        requested by the user. The region weights come in as
+                        an xarray Dataset. 
+       Return - The normalized weights based on the solid angle is returned.                 
+       """
+    region_weights = region_weights.to_array()
+    sum_region_weights = region_weights.sum()
+          
+    """
+       The line region_solid_angle calculates the sum of weights for a region, 
+       adjusted by the ratio of the region's weights to the 
+       sum of global weights, and then scaled by the 
+       solid angle of a sphere (which is 4 * np.pi)
+       """
+    region_solid_angle = (sum_region_weights / sum_global_weights) * 4 * np.pi
+                
+    """
+       Calculate the solid angle for each weight in the region.
+       Make sure the calculated region solid angle matches the sum of 
+       the individual weights' solid angles. If it does not we need to 
+       exit with an error.
+       """
+    region_solid_angle_sum_of_weights = (region_weights / sum_global_weights) * 4 * np.pi
+    if not np.isclose(region_solid_angle, region_solid_angle_sum_of_weights.sum()):
+       raise ValueError(f"The region solid angle {region_solid_angle}" 
+                           f"does not match the sum of the weights") 
+     
+    # Normalize the weights based on the solid angle sum.  
+    normalized_weights = region_solid_angle_sum_of_weights / region_solid_angle_sum_of_weights.sum()    
+    return(normalized_weights) 
 
 def calculate_surface_energy_balance(xr_dataset):
     """
@@ -122,6 +161,10 @@ def calculate_surface_energy_balance(xr_dataset):
        shtfl_ave : surface sensible heat flux
        lhtfl_ave : surface latent heat flux
        netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
+       Parameter:
+       xr_dataset - The entire bfg data set given by the user in the harvested
+                    data list.
+       Return - The calculated surface energy balance variable.             
        """
     dswrf=xr_dataset['dswrf_ave']
     dlwrf=xr_dataset['dlwrf_ave']
@@ -142,6 +185,10 @@ def calculate_toa_radative_flux(xr_dataset):
        uswrf_avetoa:averaged surface upward shortwave flux
        ulwrf_avetoa:surface upward longwave flux
        netrf_avetoa = dswrf_avetoa - uswrf_avetoa - ulwrf_avetoa
+       Parameter:
+       xr_dataset - The entire bfg data set given by the user in the harvested
+                    data list.
+       Return - The calculated the top of atmosphere radiative energy flux..             
        """
     dswrf=xr_dataset['dswrf_avetoa']
     uswrf=xr_dataset['uswrf_avetoa']
@@ -311,36 +358,9 @@ class DailyBFGHv(object):
                 region_variable_data = regions_catalog.get_region_data(iregion, \
                                                                        variable_data)
                 region_weights = regions_catalog.get_region_data(iregion,gridcell_area_data)
-                """
-                  region_weights is an xarray Dataset.  The following line converts the
-                  xarray Dataset to a singe xarray DataArray.
-                  """
-                region_weights = region_weights.to_array()
                 check_array_dimensions(region_variable_data,region_weights)
-                sum_region_weights = region_weights.sum()
-                """
-                  The line region_solid_angle calculates the sum of weights for a region, 
-                  adjusted by the ratio of the region's weights to the 
-                  sum of global weights, and then scaled by the 
-                  solid angle of a sphere (which is 4 * np.pi)
-                  The sum_global_weights is calculated above. 
-                  """
-                region_solid_angle = (sum_region_weights / sum_global_weights) * 4 * np.pi
-                
-                """
-                  Calculate the solid angle for each weight in the region.
-                  Make sure the calculated region solid angle matches the sum of 
-                  the individual weights' solid angles. If it does not we need to 
-                  exit with an error.
-                  """
-                region_solid_angle_sum_of_weights = (region_weights / sum_global_weights) * 4 * np.pi
-                if not np.isclose(region_solid_angle, region_solid_angle_sum_of_weights.sum()):
-                   raise ValueError(f"The region solid angle {region_solid_angle}" 
-                                    f"does not match the sum of the weights" 
-                                    f"{region_solid_angle_sum_of_weights.sum()}.")
-                # Normalizes the weights based on the solid angle sum.  
-                normalized_weights = region_solid_angle_sum_of_weights / region_solid_angle_sum_of_weights.sum() 
-                
+                normalized_weights = calculate_and_normalize_solid_angle(sum_global_weights,region_weights) 
+
                 # Calculate the temporal mean of the region variable data, skipping NaN values
                 region_data_temporal_mean = region_variable_data.mean(dim='time', skipna=True)
                 # Mask any invalid values (NaN or Inf) in the temporal mean
