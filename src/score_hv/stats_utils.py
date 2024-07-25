@@ -32,7 +32,9 @@ class VarStatsCatalog :
    
     def calculate_requested_statistics(self,weights,temporal_mean):
         """This function calls the methods to calculate the statistics
-           requested by the user. 
+           requested by the user. We convert the weights and 
+           temporal_mean arrays to NumPy arrays for the 
+           calculations.
            Parameters:
            weights: The weights are the normalized weights
                     based on the solid angle calculation in the 
@@ -41,6 +43,12 @@ class VarStatsCatalog :
                          the calling function.                      
            Return:Nothing is returned.
            """
+
+        if isinstance(weights,xr.DataArray): 
+           weights = weights.values 
+        if isinstance(temporal_mean , xr.DataArray):
+           temporal_mean = temporal_mean.values
+
         for stat in self.stats:
             if stat=="mean":
                self.calculate_weighted_average(weights,temporal_mean) 
@@ -52,17 +60,21 @@ class VarStatsCatalog :
                self.find_maximum_value(temporal_mean)
 
     def calculate_weighted_average(self,weights,temporal_mean):
-        """This function calculates a weighted average  
+        """This method calculates a weighted average  
            for the variable data passed in from
            the calling function calcuate_requested_statistics. 
+           In this method the weights and temporal mean arrays
+           are converted to Numpy arrays for the calculations
+           if they do not come in as Numpy arrays.
            Parameters:
            weights: The weights are the normalized weights
                     based on the solid angle calculation in the 
-                    calling routine. 
-           temporal_mean:the temporal means array that is calculated in
-                         the calling function.
+                    calling routine.  
+           temporal_mean:The temporal means array is calculated in
+                         the calling function.  
            """
-        value = np.sum(weights * temporal_mean).item()
+        weighted_sum = np.nansum(weights * temporal_mean)
+        value = weighted_sum.item()
         self.weighted_averages.append(value)
 
     def calculate_var_variance(self,weights,temporal_mean):
