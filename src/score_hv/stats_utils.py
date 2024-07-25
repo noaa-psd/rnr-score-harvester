@@ -32,7 +32,10 @@ class VarStatsCatalog :
    
     def calculate_requested_statistics(self,weights,temporal_mean):
         """This function calls the methods to calculate the statistics
-           requested by the user. 
+           requested by the user. If the weights and/or temporal_mean
+           arrays come in as xr.DataArrays, we convert the weights and 
+           temporal_mean arrays to NumPy arrays for the 
+           calculations.
            Parameters:
            weights: The weights are the normalized weights
                     based on the solid angle calculation in the 
@@ -41,6 +44,12 @@ class VarStatsCatalog :
                          the calling function.                      
            Return:Nothing is returned.
            """
+
+        if isinstance(weights,xr.DataArray): 
+           weights = weights.values 
+        if isinstance(temporal_mean , xr.DataArray):
+           temporal_mean = temporal_mean.values
+        
         for stat in self.stats:
             if stat=="mean":
                self.calculate_weighted_average(weights,temporal_mean) 
@@ -58,11 +67,12 @@ class VarStatsCatalog :
            Parameters:
            weights: The weights are the normalized weights
                     based on the solid angle calculation in the 
-                    calling routine. 
+                    calling routine. This is a NumPy array. 
            temporal_mean:the temporal means array that is calculated in
-                         the calling function.
+                         the calling function. This is a NumPy array.
            """
-        value = np.sum(weights * temporal_mean).item()
+        weighted_sum = np.nansum(weights * temporal_mean)
+        value = weighted_sum.item()
         self.weighted_averages.append(value)
 
     def calculate_var_variance(self,weights,temporal_mean):
