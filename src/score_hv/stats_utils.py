@@ -89,8 +89,6 @@ class VarStatsCatalog :
            temporal_mean:the temporal means array that is calculated in
                          the calling function. 
           """
-        weights = np.array(weights)
-        temporal_mean = np.array(temporal_mean)
     
         # Ensure the weights and temporal_mean have compatible shapes
         try:
@@ -115,8 +113,7 @@ class VarStatsCatalog :
                           is calculated in the calling script.
           Return:Nothing is returned.
           """
-        temporal_means_array=np.array(temporal_mean)
-        self.minimum.append(np.ma.min(temporal_means_array))
+        self.minimum.append(np.ma.min(temporal_mean))
 
     def find_maximum_value(self,temporal_mean):
         """
@@ -126,6 +123,5 @@ class VarStatsCatalog :
                          calcuated in the calling script.
           Return:Nothing is returned.
           """
-        temporal_means_array=np.array(temporal_mean)
-        self.maximum.append(np.ma.max(temporal_means_array))
+        self.maximum.append(np.ma.max(temporal_mean))
 
