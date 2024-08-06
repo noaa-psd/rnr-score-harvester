@@ -29,19 +29,11 @@ class VarStatsCatalog :
         self.minimum=[]
         self.maximum=[]
         self.stats=stats_list
-
-    def clear_requested_statistics(self):
-        """
-          This method clears the statistics values.
-          """
-        self.weighted_averages = []
-        self.weighted_variances = []
-        self.minimum = []
-        self.maximum = []
-
+   
     def calculate_requested_statistics(self,weights,temporal_mean):
         """This function calls the methods to calculate the statistics
-           requested by the user. We convert the weights and 
+           requested by the user. If the weights and/or temporal_mean
+           arrays come in as xr.DataArrays, we convert the weights and 
            temporal_mean arrays to NumPy arrays for the 
            calculations.
            Parameters:
@@ -57,7 +49,7 @@ class VarStatsCatalog :
            weights = weights.values 
         if isinstance(temporal_mean , xr.DataArray):
            temporal_mean = temporal_mean.values
-
+        
         for stat in self.stats:
             if stat=="mean":
                self.calculate_weighted_average(weights,temporal_mean) 
@@ -69,18 +61,15 @@ class VarStatsCatalog :
                self.find_maximum_value(temporal_mean)
 
     def calculate_weighted_average(self,weights,temporal_mean):
-        """This method calculates a weighted average  
+        """This function calculates a weighted average  
            for the variable data passed in from
            the calling function calcuate_requested_statistics. 
-           In this method the weights and temporal mean arrays
-           are converted to Numpy arrays for the calculations
-           if they do not come in as Numpy arrays.
            Parameters:
            weights: The weights are the normalized weights
                     based on the solid angle calculation in the 
-                    calling routine.  
-           temporal_mean:The temporal means array is calculated in
-                         the calling function.  
+                    calling routine. This is a NumPy array. 
+           temporal_mean:the temporal means array that is calculated in
+                         the calling function. This is a NumPy array.
            """
         weighted_sum = np.nansum(weights * temporal_mean)
         value = weighted_sum.item()
@@ -100,8 +89,6 @@ class VarStatsCatalog :
            temporal_mean:the temporal means array that is calculated in
                          the calling function. 
           """
-        weights = np.array(weights)
-        temporal_mean = np.array(temporal_mean)
     
         # Ensure the weights and temporal_mean have compatible shapes
         try:
@@ -112,14 +99,10 @@ class VarStatsCatalog :
            raise ValueError(msg)
 
         # Calculate the weighted mean (xbar) for the two-dimensional array
-        weighted_sum = np.nansum(weights * temporal_mean)
-        sum_of_weights = np.nansum(weights)
-        if sum_of_weights == 0:
-            msg = f'The sum of the weights in the variance calculation is zero'
-            raise ValueError
-
+        weighted_sum = np.sum(weights * temporal_mean)
+        sum_of_weights = np.sum(weights)
         weighted_average = weighted_sum / sum_of_weights
-        value = np.nansum(weights * (temporal_mean - weighted_average) ** 2) / sum_of_weights 
+        value = np.sum(weights * (temporal_mean - weighted_average) ** 2) / sum_of_weights 
         self.variances.append(value)
         
     def find_minimum_value(self,temporal_mean):
@@ -130,7 +113,6 @@ class VarStatsCatalog :
                           is calculated in the calling script.
           Return:Nothing is returned.
           """
-        #temporal_means_array=np.array(temporal_mean)
         self.minimum.append(np.ma.min(temporal_mean))
 
     def find_maximum_value(self,temporal_mean):
@@ -141,6 +123,5 @@ class VarStatsCatalog :
                          calcuated in the calling script.
           Return:Nothing is returned.
           """
-        #temporal_means_array=np.array(temporal_mean)
         self.maximum.append(np.ma.max(temporal_mean))
 
