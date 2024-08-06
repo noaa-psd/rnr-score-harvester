@@ -481,7 +481,7 @@ class DailyBFGHv(object):
 
                 elif statistic == 'maximum':
                     value = var_stats_instance.maximum
-                    
+                
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
 
