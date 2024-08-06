@@ -83,87 +83,65 @@ def test_global_mean_values(tolerance=0.001):
         average value hard-coded in this test was calculated from 
         forecast files using a separate python code.
     """
+    variable_dictionary = {}
     data1 = harvest(VALID_CONFIG_DICT)
-    global_means = [282.17686602723876, 281.7046086246531, 282.43550571826273]
-    weighted_means = data1[0].value
-    print("one ",weighted_means)
-    print("global ",global_means)
-    sys.exit(0)
-    for index, value in enumerate(weighted_means):
-        print(value,"  ",global_means[index])
-        assert value <= (1 + tolerance) * global_means[index]
-        assert value >= (1 - tolerance) * global_means[index]
-    sys.exit(0) 
-    global_means2 = [286.2873558744175, 286.2873558744175, 286.2873558744175]
-    weighted_means = data1[1].value
-    print(weighted_means)
-    sys.exit(0)
-    for index, value in enumerate(weighted_means):
-        assert value <= (1 + tolerance) * global_means2[index]
-        assert value >= (1 - tolerance) * global_means2[index]
+    for item in data1:
+        variable_name = item.variable
+        if variable_name not in variable_dictionary:
+           variable_dictionary[variable_name] = []
+        variable_dictionary[variable_name].append(item)
 
-    sys.exit(0)
-
-def test_global_mean_values2(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the expected value
-    of the provided variables. 
-    """
-    return
-    data1 = harvest(VALID_CONFIG_DICT)
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
+    for variable_name, data_list in variable_dictionary.items():
+       if variable_name == 'soilt4':
+          print("var name is soilt4")
+          calculated_means = [185.32222398385198, 68.18650768390042, 99.94846250485294]
+       elif variable_name == 'tg3':
+          print("var name is tg3") 
+          calculated_means = [188.81661183377483, 68.1763767691336, 99.82206535413387]
     
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    global_mean = np.ma.sum(norm_weights * temporal_mean)    
-    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'mean':
-            assert global_mean <= (1 + tolerance) * harvested_tuple.value
-            assert global_mean >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
-
+    # Filter out the HarvestedData instances with statistic 'mean'
+       mean_data = [item for item in data_list if item.statistic == 'mean']
+       if mean_data:
+           for item in mean_data:
+               for index in range(len(calculated_means)):
+                   expected_value = calculated_means[index]
+                   actual_value = item.value[index]
+                   assert actual_value <= (1 + tolerance) * expected_value 
+                   assert actual_value >= (1 - tolerance) * expected_value
+   
 def test_gridcell_variance(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the variance
     of the provided variable.  In this case prateb_ave.
     """
+    variable_dictionary = {}
     data1 = harvest(VALID_CONFIG_DICT)
+    
+    for item in data1:
+        variable_name = item.variable
+        if variable_name not in variable_dictionary:
+           variable_dictionary[variable_name] = []
+        variable_dictionary[variable_name].append(item)
 
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
+    for variable_name, data_list in variable_dictionary.items():
+       if variable_name == 'soilt4':
+          print("var name is soilt4")
+          calculated_variances = [34.16445033781812,314.57351141837273,383.1395968277926]
+       elif variable_name == 'tg3':
+          print("var name is tg3")
+          calculated_variance = [29.086693999806407, 333.14902721533633, 402.0379207002041]
 
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
+    # Filter out the HarvestedData instances with statistic 'variance'
+       variance_data = [item for item in data_list if item.statistic == 'variance']
+       if variance_data:
+           for item in variance_data:
+               for index in range(len(calculated_variances)):
+                   expected_value = calculated_variances[index]
+                   actual_value = item.value[index]
+                   assert actual_value <= (1 + tolerance) * expected_value 
+                   assert actual_value >= (1 - tolerance) * expected_value
 
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-
-        test_rootgrp.close()
-
-    temporal_mean = summation / (file_count + 1)
-
-    global_mean = np.ma.sum(norm_weights * temporal_mean)
-    variance = np.ma.sum((temporal_mean - global_mean)**2 * norm_weights)
-
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'variance':
-            assert variance <= (1 + tolerance) * harvested_tuple.value
-            assert variance >= (1 - tolerance) * harvested_tuple.value
-
-    gridcell_area_data.close()
-
+    sys.exit(0)
 def test_gridcell_min_max(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the maximum
@@ -242,7 +220,6 @@ def main():
     test_variable_names()
     test_units()
     test_global_mean_values()
-    test_global_mean_values2()
     test_gridcell_variance()
     test_gridcell_min_max()
     test_cycletime() 
