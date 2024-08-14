@@ -20,13 +20,15 @@ from pathlib import Path
   """
 
 """
-  Here we define default latitude and longitude range tuples.
-  min lat is -90 and max lat is 90. Tuple is (min_lat,max_lat)
+  Here we define default latitude and longitude ranges.
+  min lat is -90 and max lat is 90. 
   NOTE: Our longitude on the BFG files goes from 0 to 360 degrees east, circular.
-  east_lon = 360 and west lon = 0. Tuple is (east_lon, west_lon)
+  west long is 0 and east_long is 360. 
   """
-DEFAULT_LATITUDE_RANGE  = (-90, 90) 
-DEFAULT_LONGITUDE_RANGE = (360, 0)
+NORTH_LAT = 90
+SOUTH_LAT = -90
+WEST_LONG = 0
+EAST_LONG = 360
 
 class GeoRegionsCatalog:
     def __init__(self,dataset):
@@ -36,46 +38,47 @@ class GeoRegionsCatalog:
                               opened with xarray.
           """
         self.name = []
-        self.latitude_tuples = []
-        self.longitude_tuples = []
+        self.north_lat = []
+        self.south_lat = []
+        self.west_long = []
+        self.east_long = []
         self.region_indices = []
         self.latitude_values = dataset['grid_yt'].values
         self.longitude_values = dataset['grid_xt'].values
 
-    def test_user_latitudes(self,latitude_range):
+    def test_user_latitudes(self,north_lat,south_lat):
         """
           This method tests to make sure the latitude values 
           entered by the user are within the bounds of -90 to 90.
-          Also, if the user has not entered latitude values then 
-          the default values assigned.
           """
-        min_lat, max_lat = latitude_range
-        if min_lat < -90 or min_lat > 90:
-           msg = f'minimum latitude must be greater than -90. and less than 90. '\
-                 f'min_lat: {min_lat}'
+        if south_lat < -90 or north_lat > 90:
+           msg = f'southern latitude must be greater than -90. and less than 90. '\
+                 f'south_lat: {south_lat}'
            raise ValueError(msg)
 
-        if max_lat < -90 or max_lat > 90:
-           msg = f'maximum latitude must be greater than -90 and less than 90. ' \
-                 f'max_lat: {max_lat}'
+        if north_lat < -90 or north_lat > 90:
+           msg = f'northern latitude must be greater than -90 and less than 90. ' \
+                 f'north_lat: {north_lat}'
            raise ValueError(msg)
 
-        if min_lat > max_lat:
-           msg = f'minimum latitude must be less than maximum latitude ' \
-                f'min_lat: {min_lat}, max_lat: {max_lat}'  
+        if south_lat > north_lat:
+           msg = f'southern latitude must be less than northern latitude ' \
+                f'south_lat: {south_lat}, north_lat: {north_lat}'  
            raise ValueError(msg)
-
-    def test_user_longitudes(self,longitude_range):
-
-        east_lon,west_lon = longitude_range
-        if east_lon < 0 or east_lon > 360:
+    
+    def test_user_longitudes(self,west_long,east_long):
+        """
+          This method tests to make sure the longitude values 
+          entered by the user are within the bounds of 0 to 360.
+          """
+        if east_long < 0 or east_long > 360:
            msg = f'east longitude must be greater than 0 and less than 360 '\
-                 f'east_lon: {east_lon}'
+                 f'east_long: {east_long}'
            raise ValueError(msg)
 
-        if west_lon < 0 or west_lon > 360:
+        if west_long < 0 or west_long > 360:
            msg = f'west longitude must be greater than 0 and less than 360 '\
-                 f'west_lon: {west_lon}'
+                 f'west_long: {west_lon}'
            raise ValueError(msg)
 
 
@@ -84,8 +87,10 @@ class GeoRegionsCatalog:
           Parameters:
           dictionary - The dictionary should contain the following keys.
                        name - name of the region.
-                       latitude_range - a tuple of min and max latitude values
-                       longitude_range - a tuple of east and west longitude values.
+                       north_lat - northern most latitude.
+                       south_lat - southern most latitude.
+                       west_long - westmost longitude.  
+                       east_long - eastmost longitude.
           If the dictionay is empty we exit with a message.             
           If the region name key word is missing then we exit with a message.             
           If either the latitude or the longitude keys are missing we supply
@@ -94,34 +99,49 @@ class GeoRegionsCatalog:
         if not dictionary:
             msg = f'The dictionary passed in to add_user_region is empty'
             raise ValueError(msg)
-
+        
         for region_name, input_dictionary in dictionary.items():
             if not region_name:
                msg = 'No region name was given. Please enter a name for your region.'
                raise ValueError(msg)
+            self.name.append(region_name) 
 
-            required_keywords = {'latitude_range', 'longitude_range'}
+            required_keywords = {'north_lat','south_lat','west_long','east_long'}
             missing_keys = required_keywords - set(input_dictionary.keys())
-            if "longitude_range" in missing_keys:
-               print("Missing longitude values. Using defaults of east longitude = 360 and west longitude = 0")
-               longitude_range = DEFAULT_LONGITUDE_RANGE
+            if "north_lat" in missing_keys:
+               print("north_lat is missing. Using the default of north latitude = 90")
+               north_lat = NORTH_LAT
             else:
-               longitude_range = input_dictionary.get("longitude_range")
+               north_lat = input_dictionary.get("north_lat")
 
-            if "latitude_range" in missing_keys:
-                print("Latitude range is missing. Using defaults of minimum latitude = -90, maximum latitude = 90")
-                latitude_range = DEFAULT_LATITUDE_RANGE
+            if "south_lat" in missing_keys:
+                print("south_lat is missing. Using the default of south latitude = -90")
+                south_lat = SOUTH_LAT 
             else:
-                latitude_range = input_dictionary.get("latitude_range")
+                south_lat = input_dictionary.get("south_lat")
 
-            self.name.append(region_name)
-            self.test_user_latitudes(latitude_range)
-            self.latitude_tuples.append(latitude_range)
+            if "west_long" in missing_keys:
+                print("west_long is missing. Using the default of west longitude = 0")
+                west_long = WEST_LONG
+            else: 
+                west_long = input_dictionary.get("west_long")
 
-            self.test_user_longitudes(longitude_range)
-            self.longitude_tuples.append(longitude_range)
+            if "east_long" in missing_keys:
+                print("east_long is missing. Using the default of east longitude = 360")
+                east_long = EAST_LONG
+            else: 
+                east_long = input_dictionary.get("east_long")
+           
+            print(north_lat,"  ",south_lat," ",west_long," ",east_long)
+            self.test_user_latitudes(north_lat,south_lat)
+            self.north_lat.append(north_lat)
+            self.south_lat.append(south_lat)
+
+            self.test_user_longitudes(west_long,east_long)
+            self.west_long.append(west_long)
+            self.east_long.append(east_long)
             self.region_indices.append(None)
-
+            
     def get_region_indices(self,region_index):
         """
           This method calculates the indices in the latitude values and
@@ -133,19 +153,20 @@ class GeoRegionsCatalog:
           - returns: The lat_indices and lon_indices.  These lists 
             return the start and end indices as tuples. 
             """
-        num_lon = len(self.longitude_values)
+        num_long = len(self.longitude_values)
         num_lat = len(self.latitude_values)
-        step_size = self.longitude_values[num_lon-1]/num_lon
-
+        step_size = self.longitude_values[num_long-1]/num_long
+        
         # Find latitude indices within the region.
         name = self.name[region_index]
-        min_lat,max_lat = self.latitude_tuples[region_index]
-        latitude_indices = [index for index, lat in enumerate(self.latitude_values) if min_lat <= lat <= max_lat]
+        north_lat = self.north_lat[region_index]
+        south_lat = self.south_lat[region_index]
+        latitude_indices = [index for index, lat in enumerate(self.latitude_values) if south_lat <= lat <= north_lat ]
         if latitude_indices:
            lat_start_index = latitude_indices[0]
            lat_end_index = latitude_indices[-1]
         else:
-           msg=f"No latitude values were found within the specified range of {min_lat} and {max_lat}."
+           msg=f"No latitude values were found within the specified range of {south_lat} and {max_lat}."
            raise KeyError(msg)
 
         """Find longitue indices within the region.
@@ -153,17 +174,18 @@ class GeoRegionsCatalog:
            Ranges that do not cross the Prime Meridian and ranges that do cross the 
            prime meridian. Our longitude array is 0 to 360 degrees east circular.
            """
-        east_lon,west_lon = self.longitude_tuples[region_index]
-        if east_lon <= west_lon:
+        east_long = self.east_long[region_index]
+        west_long = self.west_long[region_index]
+        if east_long <= west_long:
            #region crosses the prime meridian.
-           lon_start_index = int(east_lon / step_size)
-           lon_end_index = int(west_lon / step_size)
+           lon_start_index = int(east_long / step_size)
+           lon_end_index = int(west_long / step_size)
         else:
-           lon_start_index = int(west_lon / step_size) 
-           lon_end_index = int(east_lon / step_size)
-         
+           lon_start_index = int(west_long / step_size) 
+           lon_end_index = int(east_long / step_size)
+ 
         self.region_indices[region_index] = (lat_start_index,lat_end_index,lon_start_index,lon_end_index)
-
+    
     def get_region_data(self,region_index,data):
         """ The data.isel is a xarray method that selects a range of indices
             along the grid_yt and grid_xt dimension.
@@ -174,7 +196,6 @@ class GeoRegionsCatalog:
         else:
            lat_start_index, lat_end_index, east_index, west_index = self.region_indices[region_index] 
 
-        print("in regions ",lat_start_index,"  ",lat_end_index,"  ",east_index,"  ",west_index)   
         # Check dimensions of the specific variable in the dataset
         var_dims = data.dims
         if 'time' in var_dims:
