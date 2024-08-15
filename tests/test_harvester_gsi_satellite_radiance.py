@@ -14,7 +14,7 @@ FIT_FILE_PATH = os.path.join(PYTEST_CALLING_DIR, 'data',
                              'gsistats.1979032100_control')
                              
 FIT_FILE_PATH_GEOS_IT_1998 = os.path.join(PYTEST_CALLING_DIR, 'data',
-                    'd5294_geosit_jan98.ana_stats.log.19980101_00z.txt')
+                    'x0123_abcdef_xyz01.xyz_stats.log.19980101_00z.txt')
                              
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
                      'filename': FIT_FILE_PATH,
