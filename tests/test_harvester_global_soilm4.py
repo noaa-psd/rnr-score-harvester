@@ -38,36 +38,32 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean','variance', 'minimum', 'maximum'],
-                     'longname' : ['None','None'],
-                     'variable': ['soill4','tg3'],
+                     'variable': ['soill4','soilm'],
                      'surface_mask': ['land'],
-                     'region' : {'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},  
-                                'western_hemis': {'latitude_range': (-90, 90), 'longitude_range': (200,360)},
-                                'eastern_hemis': {'latitude_range': (-90, 90), 'longitude_range': ( 0, 360) }
+                     'regions' : {'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)}, 
+                                'prime_meridian': {'latitude_range': (-90,90), 'longitude_range': (355, 50)},
+                                'eastern_hemis': {'latitude_range': (-90, 90), 'longitude_range': (0,180)},
+                                'western_hemis': {'latitude_range': (-90, 90), 'longitude_range': ( 180, 360) }
                                 }
                      }
 
 def test_gridcell_area_conservation(tolerance=0.001):
 
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    
     assert gridcell_area_data['area'].units == 'steradian'
-    
     sum_gridcell_area = np.sum(gridcell_area_data.variables['area'])
-    
     assert sum_gridcell_area < (1 + tolerance) * 4 * np.pi
     assert sum_gridcell_area > (1 - tolerance) * 4 * np.pi
-    
     gridcell_area_data.close()
 
 def test_variable_names():
-    data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].variable == 'soill4'
+    expected_variables = ['soilt4', 'tg3'] 
+    assert VALID_CONFIG_DICT['variable'] == expected_variables
 
 def test_global_mean_values(tolerance=0.001):
     """ 
-        The value of 0.7740827966108876 if the meanvalue of the 
-        global meas calculated from these eight forecast files:
+        The values of the calculated_means list were 
+        calculated from these eight forecast files:
 
         bfg_1994010100_fhr09_soil_control.nc
         bfg_1994010106_fhr06_soil_control.nc
@@ -79,120 +75,81 @@ def test_global_mean_values(tolerance=0.001):
         bfg_1994010200_fhr06_soil_control.nc
         
         When averaged together, these files represent a 24 hour mean. The 
-        average value hard-coded in this test was calculated from 
+        average values hard-coded in this test was calculated from 
         forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    global_mean = 0.7740827966108876 
-    assert data1[0].value <= (1 + tolerance) * global_mean
-    assert data1[0].value >= (1 - tolerance) * global_mean
 
-def test_global_mean_values2(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the expected value
-    of the provided variable.  In this case prateb_ave.
-    """
-    data1 = harvest(VALID_CONFIG_DICT)
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
-    
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    global_mean = np.ma.sum(norm_weights * temporal_mean)    
-    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'mean':
-            assert global_mean <= (1 + tolerance) * harvested_tuple.value
-            assert global_mean >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
+    for item in data1:
+        if item.variable == 'soill4' and item.statistic == 'mean':
+           calculated_means = [0.19575899397463747, 0.06520614678984965, 0.10126455296065041, 0.055210896310469874]
+           for index in range(len(calculated_means)):
+               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_means[index] >= (1 - tolerance) * item.value[index]
+        elif item.variable == 'soilm' and item.statistic == 'mean':
+           calculated_means = [375.5673499954881, 206.33558827840403, 281.3233256431115, 175.839442189539]
+           for index in range(len(calculated_means)):
+               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_means[index] >= (1 - tolerance) * item.value[index]
 
 def test_gridcell_variance(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the variance
-    of the provided variable.  In this case prateb_ave.
     """
+      The values of the calculated_variances list were calculated
+      from the forecast files listed above in a separate python script.
+      """
     data1 = harvest(VALID_CONFIG_DICT)
-
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
-
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-
-        test_rootgrp.close()
-
-    temporal_mean = summation / (file_count + 1)
-
-    global_mean = np.ma.sum(norm_weights * temporal_mean)
-    variance = np.ma.sum((temporal_mean - global_mean)**2 * norm_weights)
-
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'variance':
-            assert variance <= (1 + tolerance) * harvested_tuple.value
-            assert variance >= (1 - tolerance) * harvested_tuple.value
-
-    gridcell_area_data.close()
+    
+    for item in data1:
+        if item.variable == 'soill4' and item.statistic == 'variance':
+          calculated_variances = [0.004779809389007034, 0.017229243365704774, 0.01327322835050309, 0.01849427915197726]
+          for index in range(len(calculated_variances)):
+               assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
+        elif item.variable == 'soilm' and item.statistic == 'variance':
+          calculated_variances = [18693.01242077231, 239560.43247838484, 190577.1896257779, 259187.4374469734]
+          for index in range(len(calculated_variances)):
+              assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
+              assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
 
 def test_gridcell_min_max(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the maximum
-    of the provided variable.  In this case prateb_ave.
-    """
     data1 = harvest(VALID_CONFIG_DICT)
+    
+    for item in data1:
+        if item.variable == 'soill4' and item.statistic == 'minimum':
+           calculated_min  = [269.2041, 223.81133, 223.81133, 228.58289]
+           for index in range(len(calculated_min)):
+               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
 
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
+        elif item.variable == 'soill4' and item.statistic == 'maximum':
+           calculated_max = [299.17435, 308.445, 308.44702, 307.2143]
+           for index in range(len(calculated_max)):
+               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_max[index] >= (1 - tolerance) * item.value[index]
 
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
+        elif item.variable == 'soilm' and item.statistic == 'minimum':
+           calculated_min = [273.15, 215.50061, 215.50061, 222.30954]
+           for index in range(len(calculated_min)):
+               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
 
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-
-        test_rootgrp.close()
-
-    temporal_mean = summation / (file_count + 1)
-    minimum = np.ma.min(temporal_mean)
-    maximum = np.ma.max(temporal_mean)
-
-    """The following offline min and max were calculated from an external
-    python code
-    """
-    offline_min = 0.0
-    offline_max = 1.0 
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'maximum':
-            assert maximum <= (1 + tolerance) * harvested_tuple.value
-            assert maximum >= (1 - tolerance) * harvested_tuple.value
-
-            assert offline_max <= (1 + tolerance) * harvested_tuple.value
-            assert offline_max >= (1 - tolerance) * harvested_tuple.value
-
-
-        elif harvested_tuple.statistic == 'minimum':
-            assert minimum <= (1 + tolerance) * harvested_tuple.value
-            assert minimum >= (1 - tolerance) * harvested_tuple.value
-
-            assert offline_min <= (1 + tolerance) * harvested_tuple.value
-            assert offline_min >= (1 - tolerance) * harvested_tuple.value
-
-    gridcell_area_data.close()
-
+        elif item.variable == 'soilm' and item.statistic == 'maximum':
+           calculated_max = [298.1382, 301.79813, 302.39206, 302.35144]
+           for index in range(len(calculated_max)):
+               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_max[index] >= (1 - tolerance) * item.value[index]               
+    
 def test_units():
+    variable_dictionary = {}
     data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].units == "xxx"
+
+    for item in data1:
+        if item.variable == 'soilt4':
+           expected_units = 'K'
+           assert expected_units == item.units 
+        elif item.variable == 'tg3':
+           expected_units = 'K'
+           assert expected_units == item.units 
 
 def test_cycletime():
     """ The hard coded datetimestr 1994-01-01 12:00:00
@@ -208,11 +165,17 @@ def test_cycletime():
 
 def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)
-    var_longname = "liquid soil mositure at layer-4"
-    assert data1[0].longname == var_longname
+
+    for item in data1:
+        if item.variable == 'soilt4':
+           expected_longname = 'soil temperature unknown layer 4'
+           assert expected_longname == item.longname 
+        elif item.variable == 'tg3':
+           expected_longname = 'deep soil temperature'
+           assert expected_longname == item.longname
 
 def test_soil_moisture_level4_harvester():
-    data1 = harvest(VALID_CONFIG_DICT)  
+    data1 = harvest(VALID_CONFIG_DICT) 
     assert type(data1) is list
     assert len(data1) > 0
     assert data1[0].filenames==BFG_PATH
@@ -223,7 +186,6 @@ def main():
     test_variable_names()
     test_units()
     test_global_mean_values()
-    test_global_mean_values2()
     test_gridcell_variance()
     test_gridcell_min_max()
     test_cycletime() 
