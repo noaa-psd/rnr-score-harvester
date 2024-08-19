@@ -19,8 +19,8 @@ from score_hv.region_utils import GeoRegionsCatalog
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
 VALID_MASKS = ('land', 'ocean', 'sea', 'ice')
-VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'east_lon', 'west_lon')
-DEFAULT_REGION = {'global': {'latitude_range': (-90.0, 90.0), 'longitude_range': (360.0, 0.0)}}
+VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'west_lon', 'east_lon')
+DEFAULT_REGION = {'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0}}
 
 """Variables of interest that come from the background forecast data.
 Commented out variables can be uncommented to generate gridcell weighted
@@ -39,12 +39,12 @@ VALID_VARIABLES  = (
                     'prateb_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
-                    'soil4', # liquid soil moisture at layer-4 (?)
+                    'soill4', # liquid soil moisture at layer-4 (?)
                     'soilm', # total column soil moisture content (mm weq.)
                     'soilt4', # soil temperature unknown layer 4 (K)
                     'tg3', # deep soil temperature (K)
                     'tmp2m', # 2m (surface air) temperature (K)
-                    #'tmpsfc', # surface temperature (K)
+                    'tmpsfc', # surface temperature (K)
                     'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
                     #'weasd', # surface snow water equivalent (mm weq.)
                     )
@@ -456,6 +456,9 @@ class DailyBFGHv(object):
 
                 # Compute the mean over the time dimension. 
                 value = region_variable_data.mean(dim='time',skipna=True)
+                cregion = str(iregion)
+                filename = var_name+"_"+cregion+".nc" 
+                value.to_netcdf(filename)
                 temporal_means.append(value)
                 normalized_weights = normalized_weights.squeeze(axis=0)
                 """
@@ -477,17 +480,16 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-
+                                    
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
-                
+                    print(value) 
                 elif statistic == 'maximum':
                     value = var_stats_instance.maximum
-                    print("maximum ",value)
-                    sys.exit(0)
+                    
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
-
+                    
                 harvested_data.append(HarvestedData(
                                       self.config.harvest_filenames,
                                        statistic, 
