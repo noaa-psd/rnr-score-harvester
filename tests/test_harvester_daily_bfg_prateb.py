@@ -41,14 +41,15 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'statistic': ['mean', 'variance', 'minimum', 'maximum'],
                      'variable': ['prateb_ave'],
                      'regions':  {
-                                 'tropical': {'latitude_range': (-5.0, 5.0), 'longitude_range': (360.0,0.0)},
-                                 'north_hemis': {'latitude_range': (20.0, 60.0), 'longitude_range': (360.0, 0.0)},
-                                 'south_hemis': {'latitude_range': (-60.0, -20.0), 'longitude_range': (360.0, 0.0)},
-                                 'conus': {'latitude_range': (24.0, 49.0), 'longitude_range': (294.0, 235.0)},
-                                 'global': {'latitude_range': (-90.0, 90.0), 'longitude_range': (360.0, 0.0)},
-                                 'prime_meridian': {'latitude_range': (-90, 90), 'longitude_range': (10, 350)},
-                                 'africa': {'latitude_range': (35, 37), 'longitude_range': ( 51.5, 17.5) }
+                                 'conus': {'north_lat': 49, 'south_lat': 24, 'west_long': 235.0, 'east_long': 294.0},
+                                 'date_line': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 50.0, 'east_long': 355.0},
+                                 'eastern_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 180.0},
+                                 'western_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 180.0, 'east_long': 360.0},
+                                 'prime_meridian': {'north_lat': 90.0, 'south_lat': -90.0,'west_long': 270.0, 'east_long': 30.0},
+                                 'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0, 'east_long': 360 },
+                                 'tropical': {'north_lat': 5, 'south_lat': -5, 'west_long': 0, 'east_long': 360.0},
                                 }
+
                      }
 
 def test_gridcell_area_conservation(tolerance=0.001):
@@ -63,7 +64,7 @@ def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'prateb_ave'
 
-def test_global_mean_values_offline(tolerance=0.001):
+def test_global_mean_values(tolerance=0.001):
     """The mean values are calculated from these 
        eight forecast files:
         
@@ -87,9 +88,9 @@ def test_global_mean_values_offline(tolerance=0.001):
     for harvested_data in data1[0]: 
         has_region = any(hasattr(data, 'regions') for data in data1) #Returns a boolean.
         if has_region:
-           global_means = [7.04825819962097e-05, 2.8965191456702544e-05,2.2748022739982528e-05, \
-                           2.8757226299207098e-05, 3.1183886948414354e-05, 3.1852686337843634e-05, \
-                           6.275229210830687e-05]
+           global_means = [2.8757226299207095e-05, 3.275308514564545e-05, 3.225420289425872e-05, \
+                           3.0093478472285123e-05, 3.25835162239216e-05, 3.117384068327193e-05, \
+                           7.04825819962097e-05]
             
            for i, harvested_tuple in enumerate(data1):
                if harvested_tuple.statistic == 'mean':
@@ -98,14 +99,14 @@ def test_global_mean_values_offline(tolerance=0.001):
                       assert global_means[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
                       assert global_means[inum] >= (1 - tolerance) * harvested_tuple.value[inum]
 
-def test_gridcell_variance(tolerance=0.001):
+def test_variance_values(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
     for harvested_data in data1[0]:  
         has_region = any(hasattr(data, 'regions') for data in data1) #Returns a boolean.
         if has_region:
-           variances = [1.482636074512706e-08, 4.387809931485424e-09, 2.4515670413943818e-09, \
-                        4.404340892598467e-09, 5.738487271970866e-09, 5.961559044830038e-09, \
-                        7.161997909885633e-09] 
+           variances = [4.404340892598467e-09, 6.321334139899629e-09, 6.012355081136634e-09, \
+                        5.4622850553750265e-09, 6.268698538596581e-09, 5.738487271970866e-09, \
+                        1.482636074512706e-08] 
            for i, harvested_tuple in enumerate(data1):
                 if harvested_tuple.statistic == 'variance':
                    num_values = len(harvested_tuple.value)
@@ -122,22 +123,23 @@ def test_gridcell_min(tolerance=0.001):
     for harvested_data in data1[0]:  
         has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
         if has_region:
-           min_values = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.9682753e-10]
+           min_values = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
            for i, harvested_tuple in enumerate(data1):
                 if harvested_tuple.statistic == 'minimum':
                    num_values = len(harvested_tuple.value)
                    for inum in range(num_values):
                        assert min_values[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
                        assert min_values[inum] >= (1 - tolerance) * harvested_tuple.value[inum]
-
+ 
 def test_gridcell_max(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
+     
     for harvested_data in data1[0]:  
         has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
         if has_region:
-           max_values = [0.0032889172, 0.002300344, 0.0009843283, 0.00071415555, 0.004360093, \
-                         0.0022887615, 0.000595822 ]
+           max_values = [0.00071415555, 0.0043600933, 0.0043600933, \
+                         0.0032889172, 0.0043600933, 0.0043600933, \
+                         0.0032889172] 
  
            for i, harvested_tuple in enumerate(data1):
                if harvested_tuple.statistic == 'maximum':
@@ -178,8 +180,8 @@ def main():
     test_precip_harvester()
     test_variable_names()
     test_units()
-    test_global_mean_values_offline()
-    test_gridcell_variance()
+    test_global_mean_values()
+    test_variance_values()
     test_gridcell_min()
     test_gridcell_max()
     test_cycletime() 
