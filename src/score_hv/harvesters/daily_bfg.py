@@ -19,8 +19,8 @@ from score_hv.region_utils import GeoRegionsCatalog
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
 VALID_MASKS = ('land', 'ocean', 'sea', 'ice')
-VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'east_lon', 'west_lon')
-DEFAULT_REGION = {'global': {'latitude_range': (-90.0, 90.0), 'longitude_range': (360.0, 0.0)}}
+VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'west_lon', 'east_lon')
+DEFAULT_REGION = {'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0}}
 
 """Variables of interest that come from the background forecast data.
 Commented out variables can be uncommented to generate gridcell weighted
@@ -39,12 +39,12 @@ VALID_VARIABLES  = (
                     'prateb_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
-                    'soil4', # liquid soil moisture at layer-4 (?)
+                    'soill4', # liquid soil moisture at layer-4 (?)
                     'soilm', # total column soil moisture content (mm weq.)
                     'soilt4', # soil temperature unknown layer 4 (K)
                     'tg3', # deep soil temperature (K)
                     'tmp2m', # 2m (surface air) temperature (K)
-                    #'tmpsfc', # surface temperature (K)
+                    'tmpsfc', # surface temperature (K)
                     'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
                     #'weasd', # surface snow water equivalent (mm weq.)
                     )
@@ -159,7 +159,6 @@ def calculate_and_normalize_solid_angle(sum_global_weights,region_weights):
        """
     region_weights = region_weights.to_array()
     sum_region_weights = region_weights.sum()
-          
     """
        The line region_solid_angle calculates the sum of weights for a region, 
        adjusted by the ratio of the region's weights to the 
@@ -167,7 +166,6 @@ def calculate_and_normalize_solid_angle(sum_global_weights,region_weights):
        solid angle of a sphere (which is 4 * np.pi)
        """
     region_solid_angle = (sum_region_weights / sum_global_weights) * 4 * np.pi
-                
     """
        Calculate the solid angle for each weight in the region.
        Make sure the calculated region solid angle matches the sum of 
@@ -379,7 +377,17 @@ class DailyBFGHv(object):
           """
         sum_global_weights = gridcell_area_data['area'].sum()
         median_cftime = get_median_cftime(xr_dataset)
-        
+       
+        """
+          Get the statistics requested by the user.  
+          Instantiate the stats class in stats_util.py.
+          Initialize the temporal_means list.  The
+          temporal_means are calculated in the stats_util.py
+          class and returned.
+          """
+        stats_list = self.config.get_stats()
+        var_stats_instance = VarStatsCatalog(stats_list)
+
         """
           We will always have a least one region so we can instantiate the region catalog.
           The regions were gathered in the get_regions method above in the DailyBFGConfig class.
@@ -389,8 +397,9 @@ class DailyBFGHv(object):
         regions_catalog.add_user_region(self.config.regions)
 
         for i, variable in enumerate(self.config.get_variables()):
-            """ The first nested loop iterates through each requested variable.
-               """
+            """ 
+              The first nested loop iterates through each requested variable.
+              """
             namelist=self.config.get_variables()
             var_name=namelist[i]
             if var_name == "netef_ave":
@@ -412,15 +421,7 @@ class DailyBFGHv(object):
                      units=variable_data.attrs['units']
                  else:
                      units="None"
-            """
-              Get the statistics requested by the user.  
-              Instantiate the stats class in stats_util.py.
-              Initialize the temporal_means list.  The
-              temporal_means are calculated in the stats_util.py
-              class and returned.
-              """
-            stats_list = self.config.get_stats()
-            var_stats_instance = VarStatsCatalog(stats_list)
+              
             """
               The temporal means is a list which will hold the 
               temporal means calculated in this function.
@@ -429,12 +430,13 @@ class DailyBFGHv(object):
               by the user.
               """
             temporal_means = []
+            var_stats_instance.clear_requested_statistics()
             for iregion in range(len(self.config.regions)):
                 region_variable_data = regions_catalog.get_region_data(iregion,variable_data)
                 region_weights = regions_catalog.get_region_data(iregion,gridcell_area_data)
                 check_array_dimensions(region_variable_data,region_weights)
                 normalized_weights = calculate_and_normalize_solid_angle(sum_global_weights,region_weights)
-               
+                
                 if self.config.surface_mask != None:
                    land_mask = xr_dataset['land'] #'land' is the name of variable in the bfg file. 
                    region_land_mask = regions_catalog.get_region_data(iregion,land_mask)
@@ -454,6 +456,9 @@ class DailyBFGHv(object):
 
                 # Compute the mean over the time dimension. 
                 value = region_variable_data.mean(dim='time',skipna=True)
+                cregion = str(iregion)
+                filename = var_name+"_"+cregion+".nc" 
+                value.to_netcdf(filename)
                 temporal_means.append(value)
                 normalized_weights = normalized_weights.squeeze(axis=0)
                 """
@@ -475,16 +480,16 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-                
+                        
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
-
+                    
                 elif statistic == 'maximum':
                     value = var_stats_instance.maximum
-                
+                     
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
-
+                     
                 harvested_data.append(HarvestedData(
                                       self.config.harvest_filenames,
                                        statistic, 
