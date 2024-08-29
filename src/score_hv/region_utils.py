@@ -132,7 +132,6 @@ class GeoRegionsCatalog:
             else: 
                 east_long = input_dictionary.get("east_long")
            
-            print(north_lat,"  ",south_lat," ",west_long," ",east_long)
             self.test_user_latitudes(north_lat,south_lat)
             self.north_lat.append(north_lat)
             self.south_lat.append(south_lat)
@@ -140,7 +139,6 @@ class GeoRegionsCatalog:
             self.test_user_longitudes(west_long,east_long)
             self.west_long.append(west_long)
             self.east_long.append(east_long)
-            #self.region_indices.ddappend(None)
             
     def get_region_indices(self,region_index):
         """
@@ -153,14 +151,12 @@ class GeoRegionsCatalog:
           - returns: The lat_indices and lon_indices.  These lists 
             return the start and end indices as tuples. 
             """
-        print("in get region indices")
         num_long = len(self.longitude_values)
         num_lat = len(self.latitude_values)
         step_size = self.longitude_values[num_long-1]/num_long
         
         # Find latitude indices within the region.
         name = self.name[region_index]
-        print("the name",name)
         
         north_lat = self.north_lat[region_index]
         south_lat = self.south_lat[region_index]
@@ -172,7 +168,6 @@ class GeoRegionsCatalog:
            msg=f"No latitude values were found within the specified range of {south_lat} and {max_lat}."
            raise KeyError(msg)
 
-        print(lat_start_index,lat_end_index)
        
         """Find longitue indices within the region.
            We have two cases to consider here. 
@@ -182,30 +177,54 @@ class GeoRegionsCatalog:
         east_long = self.east_long[region_index]
         west_long = self.west_long[region_index]
         if east_long <= west_long:
-           #region crosses the prime meridian.
-           lon_start_index = int(east_long / step_size)
-           lon_end_index = int(west_long / step_size)
+           #region crosses the prime meridian. So we need to get two separate regions.
+           long1_start_index = int(west_long/step_size)
+           long1_end_index = num_long - 1
+           long2_start_index = 0
+           long2_end_index = int(east_long/step_size)
         else:
-           lon_start_index = int(west_long / step_size) 
-           lon_end_index = int(east_long / step_size)
-        return (lat_start_index,lat_end_index,lon_start_index,lon_end_index) 
+           long1_start_index = int(west_long / step_size) 
+           long1_end_index = int(east_long / step_size)
+           long2_start_index = -999
+           long2_end_index = -999
+        return (lat_start_index,lat_end_index,long1_start_index,long1_end_index,long2_start_index,long2_end_index) 
 
     def get_region_data(self,region_index,data):
         """ The data.isel is a xarray method that selects a range of indices
             along the grid_yt and grid_xt dimension.
             """
-        lat_start_index,lat_end_index,lon_start_index,lon_end_index = self.get_region_indices(region_index)
-        print(lat_start_index,"  ",lat_end_index,"  ",lon_start_index,"  ",lon_end_index)
-        
+        lat_start_index,lat_end_index,long1_start_index,long1_end_index,long2_start_index, \
+        long2_end_index = self.get_region_indices(region_index)
+         
         # Check dimensions of the specific variable in the dataset
         var_dims = data.dims
         if 'time' in var_dims:
-            region_data = data.isel(time=slice(None),
+            if long2_start_index != -999:
+               region1_data = data.isel(time=slice(None),
                                                    grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(lon_start_index, lon_end_index))
+                                                   grid_xt=slice(long1_start_index, long1_end_index))
+
+               region2_data = data.isel(time=slice(None),
+                                                   grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                                   grid_xt=slice(long2_start_index, long2_end_index))
+               region_data = xr.concat([region1_data,region2_data],dim='grid_xt')
+               
+            else:
+               region_data = data.isel(time=slice(None),
+                                                   grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                                   grid_xt=slice(long1_start_index, long1_end_index))                
         else:
-            region_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(lon_start_index,lon_end_index))        
+            if long2_start_index != -999:
+               region1_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                                   grid_xt=slice(long1_start_index,long1_end_index)) 
+
+               region2_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                                   grid_xt=slice(long2_start_index,long2_end_index)) 
+           
+               region_data = xr.concat([region1_data,region2_data],dim='grid_xt')
+            else:
+               region_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                                   grid_xt=slice(long1_start_index,long1_end_index))        
         return(region_data)
 
          
