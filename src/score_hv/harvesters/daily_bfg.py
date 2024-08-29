@@ -15,12 +15,19 @@ from dataclasses import field
 from score_hv.config_base  import ConfigInterface
 from score_hv.stats_utils  import VarStatsCatalog  
 from score_hv.region_utils import GeoRegionsCatalog
+from score_hv.mask_utils import MaskCatalog
 
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
-VALID_MASKS = ('land', 'ocean', 'sea', 'ice')
 VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'west_lon', 'east_lon')
 DEFAULT_REGION = {'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0}}
+"""
+  The following variables are automatically masked when they
+  are read in.
+  Soil variables are soil4,soilm,soilt4 and tg3.
+  This mask is different than the user requested mask.
+  """  
+VARIABLES_TO_MASK = ['soill4', 'soilm', 'soilt4', 'tg3']
 
 """Variables of interest that come from the background forecast data.
 Commented out variables can be uncommented to generate gridcell weighted
@@ -36,7 +43,7 @@ VALID_VARIABLES  = (
                     'uswrf_ave', # averaged surface upward shortwave flux (W/m**2)
                     'netrf_avetoa',#top of atmosphere net radiative flux (SW and LW) (W/m**2)
                     'netef_ave',#surface energy balance (W/m**2)
-                    'prateb_ave', # surface precip rate (mm weq. s^-1)
+                    'prate_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
                     'soill4', # liquid soil moisture at layer-4 (?)
@@ -85,35 +92,74 @@ def get_median_cftime(xr_dataset):
                                          'hours since 1951-01-01 00:00:00')
     return(median_cftime) 
 
-def remove_missing_fill_values(variable_data):
+def check_variable_exists(var_name,dataset_variable_names):
     """
-      Check for _FillValue or missing_values in the variable data.
-      This method will replace the missing or fill values with 
-      NaN.
-      Parameters;
-      variable_data - The variable field data. Variable_data is of
-                      type class 'xarray.core.dataarray.DataArray.
-      Return - The variable field data with NaN's for where the 
-               grid values are missing or fill values. The returned
-               masked_variable_data is of type 
-               class 'xarray.core.dataarray.DataArray.
-      """         
-    fill_value = variable_data.encoding.get('_FillValue', None)
-    missing_value = variable_data.encoding.get('missing_value', None)
+      Checks if a field exists in the xarray dataset. If
+      the variable does not exist we exit with a message giving
+      the missing variable name.
+      Parameters:
+      var_name: The name of the variable to check for.
+      dataset_variable_names: A list of variables names that are 
+                              in the input dataset.
+      """
+    if var_name not in dataset_variable_names:
+        raise KeyError(f"Missing required field in the dataset: {var_name}")
+        sys.exit(1)
 
-    # Create a combined mask for both fill_value and missing_value
-    if fill_value is not None and missing_value is not None:
-       mask = (variable_data != fill_value) & (variable_data != missing_value)
-    elif fill_value is not None:
-       mask = variable_data != fill_value
-    elif missing_value is not None:
-       mask = variable_data != missing_value
-    else:
-       mask = np.isfinite(variable_data)
+def calculate_surface_energy_balance(xr_dataset,dataset_variable_names):
+    """
+       This method calculates the derived variable netef_ave. 
+       The required fields are:
+       dswrf_ave : averaged surface downward shortwave flux
+       dlwrf_ave : surface downward longwave flux
+       ulwrf_ave : surface upward longwave flux
+       uswrf_ave : averaged surface upward shortwave flux
+       shtfl_ave : surface sensible heat flux
+       lhtfl_ave : surface latent heat flux
+       netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
+       Parameter:
+       xr_dataset - The entire bfg data set given by the user in the harvested
+                    data list.
+       Return - The calculated surface energy balance variable.             
+       """
+    required_variables = ['dswrf_ave', 'dlwrf_ave', 'ulwrf_ave', 'uswrf_ave', 'shtfl_ave', 'lhtfl_ave']   
+    for var_name in required_variables:
+        check_variable_exists(var_name,dataset_variable_names) 
 
-    # Apply the mask
-    masked_variable = variable_data.where(mask)
-    return(masked_variable)
+    dswrf=xr_dataset['dswrf_ave']
+    dlwrf=xr_dataset['dlwrf_ave']
+    ulwrf=xr_dataset['ulwrf_ave']
+    uswrf=xr_dataset['uswrf_ave']
+    shtfl=xr_dataset['shtfl_ave']
+    lhtfl=xr_dataset['lhtfl_ave']
+    netef_ave_data = dswrf + dlwrf - ulwrf - uswrf - shtfl - lhtfl
+    return(netef_ave_data)
+
+def calculate_toa_radative_flux(xr_dataset,dataset_variable_names):
+    """
+       This method calculates the derived variable netef_ave.
+       The variable name netrf_avetoa referes to the top of the
+       atmosphere (TOA) net radiative energy flux.
+       The required fields are:
+       dswrf_avetoa:averaged surface downward shortwave flux
+       uswrf_avetoa:averaged surface upward shortwave flux
+       ulwrf_avetoa:surface upward longwave flux
+       netrf_avetoa = dswrf_avetoa - uswrf_avetoa - ulwrf_avetoa
+       Parameter:
+       xr_dataset - The entire bfg data set given by the user in the harvested
+                    data list.
+       Return - The calculated the top of atmosphere radiative energy flux.         
+       """
+    required_variables = ['dswrf_avetoa', 'uswrf_avetoa', 'ulwrf_avetoa']
+    for var_name in required_variables:
+        check_variable_exists(var_name,dataset_variable_names)
+
+    dswrf=xr_dataset['dswrf_avetoa']
+    uswrf=xr_dataset['uswrf_avetoa']
+    ulwrf=xr_dataset['ulwrf_avetoa']
+    netrf_avetoa=dswrf - uswrf - ulwrf
+    return(netrf_avetoa)
+
 
 def check_array_dimensions(region_variable,region_weights):
     """
@@ -181,79 +227,6 @@ def calculate_and_normalize_solid_angle(sum_global_weights,region_weights):
     normalized_weights = region_solid_angle_sum_of_weights / region_solid_angle_sum_of_weights.sum()    
     return(normalized_weights) 
 
-def calculate_surface_energy_balance(xr_dataset):
-    """
-       This method calculates the derived variable netef_ave. 
-       The required fields are:
-       dswrf_ave : averaged surface downward shortwave flux
-       dlwrf_ave : surface downward longwave flux
-       ulwrf_ave : surface upward longwave flux
-       uswrf_ave : averaged surface upward shortwave flux
-       shtfl_ave : surface sensible heat flux
-       lhtfl_ave : surface latent heat flux
-       netef_ave = dswrf_ave + dlwrf_ave - ulwrf_ave - uswrf_ave - shtfl_ave - lhtfl_ave
-       Parameter:
-       xr_dataset - The entire bfg data set given by the user in the harvested
-                    data list.
-       Return - The calculated surface energy balance variable.             
-       """
-    dswrf=xr_dataset['dswrf_ave']
-    dlwrf=xr_dataset['dlwrf_ave']
-    ulwrf=xr_dataset['ulwrf_ave']
-    uswrf=xr_dataset['uswrf_ave']
-    shtfl=xr_dataset['shtfl_ave']
-    lhtfl=xr_dataset['lhtfl_ave']
-    netef_ave_data=dswrf + dlwrf - ulwrf - uswrf - shtfl - lhtfl
-    return(netef_ave_data)
-
-def calculate_toa_radative_flux(xr_dataset):
-    """
-       This method calculates the derived variable netef_ave.
-       The variable name netrf_avetoa referes to the top of the
-       atmosphere (TOA) net radiative energy flux.
-       The required fields are:
-       dswrf_avetoa:averaged surface downward shortwave flux
-       uswrf_avetoa:averaged surface upward shortwave flux
-       ulwrf_avetoa:surface upward longwave flux
-       netrf_avetoa = dswrf_avetoa - uswrf_avetoa - ulwrf_avetoa
-       Parameter:
-       xr_dataset - The entire bfg data set given by the user in the harvested
-                    data list.
-       Return - The calculated the top of atmosphere radiative energy flux.         
-       """
-    dswrf=xr_dataset['dswrf_avetoa']
-    uswrf=xr_dataset['uswrf_avetoa']
-    ulwrf=xr_dataset['ulwrf_avetoa']
-    netrf_avetoa=dswrf - uswrf - ulwrf
-    return(netrf_avetoa)
-
-def define_landmask_array(user_mask,region_land_mask):
-    """
-      The user has requested a mask. Here we keep only the
-      type of data that the user wants. On the bfg Netcdf file
-      the land mask has:
-                        0 for ocean
-                        1 for land
-                        2 for ice.
-      Parameters: 
-      user_mask - This has to be one of the values in the VALID_MASKS.
-      region_land_mask - This is the land variable read in from the
-                         bfg data file.  It is subseted into the 
-                         geographic region requested by the user.
-      Return - The land mask array is returned.  This will contain
-               boolean values. True for grid points we want and False
-               for grid points we do not want.
-      """
-
-    if 'land' in user_mask:
-       land_mask_array = region_land_mask == 1
-    elif 'ocean' in user_mask:
-       land_mask_array = region_land_mask == 0
-    elif 'sea' in user_mask:
-       land_mask_array = region_land_mask == 0
-    elif 'ice' in user_mask:
-       land_mask_array = region_land_mask == 2
-    return(land_mask_array)   
 
 @dataclass
 class DailyBFGConfig(ConfigInterface):
@@ -367,6 +340,8 @@ class DailyBFGHv(object):
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
+        # Get the list of variable names in the dataset
+        dataset_variable_names = list(xr_dataset.data_vars.keys())
         latitudes = xr_dataset['grid_yt']
         longitudes = xr_dataset['grid_xt']
         gridcell_area_data = xr.open_dataset(get_gridcell_area_data_path())
@@ -396,23 +371,41 @@ class DailyBFGHv(object):
         regions_catalog = GeoRegionsCatalog(xr_dataset)
         regions_catalog.add_user_region(self.config.regions)
 
+        """
+          Here we initialize the MaskCatalog class.
+          mask_instance = MaskCatalog().  The sotyp variable
+          on the dataset is used to distinguish between 
+          land,ocean and ice. 
+          ocean = vaues of 0
+          ice   = values of 16
+          land  = values between ocean and ice.
+          """
+        soil_type = 'sotyp'  
+        check_variable_exists(soil_type,dataset_variable_names) 
+        soil_type_variable = xr_dataset['sotyp']  
+        mask_instance = MaskCatalog(soil_type_variable)
+        
         for i, variable in enumerate(self.config.get_variables()):
             """ 
-              The first nested loop iterates through each requested variable.
+              The first nested loop iterates through each requesed variable.
               """
             namelist=self.config.get_variables()
             var_name=namelist[i]
             if var_name == "netef_ave":
-                 variable_data=calculate_surface_energy_balance(xr_dataset)
-                 longname="surface energy balance"
-                 units="W/m**2"
+                 variable_data = calculate_surface_energy_balance(xr_dataset,dataset_variable_names)
+                 longname = "surface energy balance"
+                 units = "W/m**2"
             elif var_name == "netrf_avetoa":
-                 variable_data=calculate_toa_radative_flux(xr_dataset)
-                 longname="Top of atmosphere net radiative flux"
-                 units="W/m**2"
-            else:     
+                 variable_data = calculate_toa_radative_flux(xr_dataset,dataset_variable_names)
+                 longname =" Top of atmosphere net radiative flux"
+                 units = "W/m**2"
+            else: 
+                 check_variable_exists(var_name,dataset_variable_names)
                  variable_data = xr_dataset[variable]
-                 variable_data = remove_missing_fill_values(variable_data)
+                 if var_name in VARIABLES_TO_MASK:
+                    variable_data = mask_instance.mask_variable(var_name,variable_data,xr_dataset)
+                    
+                 variable_data = mask_instance.replace_bad_values_with_nan(variable_data)
                  if 'long_name' in variable_data.attrs:
                      longname=variable_data.attrs['long_name']
                  else:
@@ -458,9 +451,12 @@ class DailyBFGHv(object):
                 value = region_variable_data.mean(dim='time',skipna=True)
                 cregion = str(iregion)
                 filename = var_name+"_"+cregion+".nc" 
+                value.name = var_name
                 value.to_netcdf(filename)
+                normalized_weights.name = "weights"
                 temporal_means.append(value)
                 normalized_weights = normalized_weights.squeeze(axis=0)
+                normalized_weights.to_netcdf(filename,mode='a')
                 """
                    Here we pass the normalized_weights and the temporal_mean into the 
                    stats class.  
@@ -480,16 +476,16 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-                                    
+
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
-                    print(value) 
+                                         
                 elif statistic == 'maximum':
                     value = var_stats_instance.maximum
                     
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
-                    
+                   
                 harvested_data.append(HarvestedData(
                                       self.config.harvest_filenames,
                                        statistic, 
