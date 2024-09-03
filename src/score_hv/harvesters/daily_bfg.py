@@ -36,7 +36,7 @@ VALID_VARIABLES  = (
                     'uswrf_ave', # averaged surface upward shortwave flux (W/m**2)
                     'netrf_avetoa',#top of atmosphere net radiative flux (SW and LW) (W/m**2)
                     'netef_ave',#surface energy balance (W/m**2)
-                    'prateb_ave', # surface precip rate (mm weq. s^-1)
+                    'prate_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
                     #'snod', # surface snow depth (m)
                     'soill4', # liquid soil moisture at layer-4 (?)
