@@ -16,7 +16,7 @@ FIT_FILE_PATH = os.path.join(PYTEST_CALLING_DIR, 'data',
 FIT_FILE_PATH_GEOS_IT_1998 = os.path.join(PYTEST_CALLING_DIR, 'data',
                     'x0123_abcdef_xyz01.xyz_stats.log.19980101_00z.txt')
                              
-VALID_CONFIG_DICT = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
+VALID_CONFIG_DICT = {'harvester_name': hv_registry.GSI_SATELLITE_RADIANCE_CHANNEL,
                      'filename': FIT_FILE_PATH,
                      'variables': ('var',
                                    'varch_cld',
@@ -39,7 +39,7 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
                     }
                     
 VALID_CONFIG_DICT_GEOS_IT_1998 = {'harvester_name': 
-                                  hv_registry.GSI_RADIANCE_CHANNEL,
+                                  hv_registry.GSI_SATELLITE_RADIANCE_CHANNEL,
                      'filename': FIT_FILE_PATH_GEOS_IT_1998,
                      'variables': ('var',
                                    'varch_cld',
@@ -59,7 +59,8 @@ VALID_CONFIG_DICT_GEOS_IT_1998 = {'harvester_name':
                     }
     
 def test_only_stats():
-    valid_config_dict = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
+    valid_config_dict = {'harvester_name': 
+                             hv_registry.GSI_SATELLITE_RADIANCE_CHANNEL,
                          'filename': FIT_FILE_PATH,
                          'statistics': ('bias_pre_corr', 'bias_post_corr', 'std'),
     }
@@ -68,7 +69,8 @@ def test_only_stats():
     assert data[-1].observation_type=='ssu_tirosn'
 
 def test_bad_config():
-    bad_config_dict = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
+    bad_config_dict = {'harvester_name': 
+                            hv_registry.GSI_SATELLITE_RADIANCE_CHANNEL,
                        'filename': FIT_FILE_PATH,
                        'variables': ('bias_correction_coefficients'),
                        'statistics': ('nobs_used',
@@ -296,7 +298,8 @@ def test_active_channels():
                 assert entry.channels == [1,2,3,4]
                 
 def test_no_vars():
-    valid_config_dict = {'harvester_name': hv_registry.GSI_RADIANCE_CHANNEL,
+    valid_config_dict = {'harvester_name': 
+                             hv_registry.GSI_SATELLITE_RADIANCE_CHANNEL,
                          'filename': FIT_FILE_PATH,
                          'statistics': ('nobs_used',
                                         'nobs_tossed',

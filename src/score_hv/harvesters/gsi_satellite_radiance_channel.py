@@ -13,7 +13,7 @@ from datetime import datetime
 
 from score_hv.config_base import ConfigInterface
 
-HARVESTER_NAME = 'gsi_radiance_channel'
+HARVESTER_NAME = 'gsi_satellite_radiance_channel'
 
 BIAS_CORR_COEF_STR = 'bias_correction_coefficients'
 N_BIAS_CORR_COEF = 12
@@ -43,8 +43,8 @@ VALID_STATISTICS = (
     'std' # standard deviation
 )
 
-SatinfoStat = namedtuple(
-    'SatinfoStat', [
+GSISatelliteRadianceChannelStat = namedtuple(
+    'GSISatelliteRadianceChannelStat', [
         'datetime',
         'ensemble_member',
         'iteration',
@@ -58,7 +58,7 @@ SatinfoStat = namedtuple(
 )
 
 @dataclass
-class SatinfoChannelConfig(ConfigInterface):
+class GSISatelliteRadianceChannelConfig(ConfigInterface):
 
     config_data: dict = field(default_factory=dict)
 
@@ -99,13 +99,14 @@ class SatinfoChannelConfig(ConfigInterface):
                 raise KeyError(msg)
 
 @dataclass
-class SatinfoChannelHv(object):
+class GSISatelliteRadianceChannelHv(object):
     """Harvester dataclass used to parse GSI analysis fort.207 fit file
     
     Parameters:
     -----------
-    config: SatinfoChannelConfig object containing information used to 
-    determine which data to extract from the GSI analysis fort.207 fit file
+    config: GSISatelliteRadianceChannelConfig object containing information 
+    used to determine which data to extract from the GSI analysis fort.207 fit 
+    file
     
     Methods:
     --------
@@ -113,19 +114,20 @@ class SatinfoChannelHv(object):
     
     returns a list of tuples containing specific data
     """
-    config: SatinfoChannelConfig = field(default_factory=SatinfoChannelConfig)
+    config: GSISatelliteRadianceChannelConfig = field(default_factory = 
+                                              GSISatelliteRadianceChannelConfig)
 
     def get_data(self):
         """Read the fort.207 fit file (from the GSI analysis output)
         
-        returns a list of SatinfoStat tuples
+        returns a list of GSISatelliteRadianceChannelStat tuples
         """
         self.channels = dict() # iterate by series_number
         self.channel_stats = dict() # iterate by GSI stage
         
         self.obs_type_channels = dict() # iterate by observation type
         self.obs_type_series_numbers = dict() # iterate by observation type
-        self.satinfo_stats = list() # iterate by observation type
+        self.obs_type_stats = list() # iterate by observation type
         
         
         # get the datetime from the input file name
@@ -168,7 +170,7 @@ class SatinfoChannelHv(object):
                         self.channels[series_number]['data_usage_dict'][var]
                     )
                     
-                self.satinfo_stats.append(SatinfoStat(
+                self.obs_type_stats.append(GSISatelliteRadianceChannelStat(
                     self.datetime,
                     self.ensemble_member,
                     None,
@@ -213,19 +215,20 @@ class SatinfoChannelHv(object):
                                 values_by_channel.append(None)
                                 longnames.append(None)
                         
-                        self.satinfo_stats.append(SatinfoStat(
-                            self.datetime,
-                            self.ensemble_member,
-                            gsi_stage,
-                            obs_type,
-                            series_num_list,
-                            self.obs_type_channels[obs_type],
-                            stat,
-                            values_by_channel,
-                            longnames
+                        self.obs_type_stats.append(
+                            GSISatelliteRadianceChannelStat(
+                                self.datetime,
+                                self.ensemble_member,
+                                gsi_stage,
+                                obs_type,
+                                series_num_list,
+                                self.obs_type_channels[obs_type],
+                                stat,
+                                values_by_channel,
+                                longnames
                         ))
         
-        return self.satinfo_stats
+        return self.obs_type_stats
 
     def get_channel_stats(self, line_parts):
         """iterate through the requested statistics and extract relevant data
