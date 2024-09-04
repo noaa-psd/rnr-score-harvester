@@ -281,14 +281,14 @@ class GSISatelliteRadianceChannelHv(object):
         """ parse lines of fit file and extract statistics
         """
         self.gsi_stage = 1
-        radinfo_read1 = False
-        radinfo_read2 = False
+        radinfo_read_satinfo_content = False
+        radinfo_read_bias_corr_coef = False
         channelstats_read = False
         finalsummary_read = False
         for line_number, line in enumerate(self.lines):
             line_parts = line.split()
             
-            if radinfo_read1:
+            if radinfo_read_satinfo_content:
                 """RADINFO_READ PART 1
                 
                 harvest satinfo content
@@ -351,9 +351,9 @@ class GSISatelliteRadianceChannelHv(object):
                 if series_number == self.nchannels:
                     """this is the last channel
                     """
-                    radinfo_read1 = False
+                    radinfo_read_satinfo_content = False
                 
-            elif radinfo_read2:
+            elif radinfo_read_bias_corr_coef:
                 """RADINFO_READ PART 2
                 
                 harvest bias correction coeficients
@@ -385,7 +385,7 @@ class GSISatelliteRadianceChannelHv(object):
                 if series_number == self.nchannels:
                     """this is the last channel
                     """
-                    radinfo_read2 = False
+                    radinfo_read_bias_corr_coef = False
             
             """ The below algorithm determines how to advance the parser
             """
@@ -403,13 +403,13 @@ class GSISatelliteRadianceChannelHv(object):
                 finalsummary_read = False
                 self.gsi_stage += 1
             
-            if not radinfo_read1 and len(line_parts) > 2:
+            if not radinfo_read_satinfo_content and len(line_parts) > 2:
                 """determine how to proceed based on the line
                 """
                 if (line_parts[0] == 'RADINFO_READ:' and line_parts[1] == 'jpch_rad='):
                     """ proceed with satinfo channel data
                     """
-                    radinfo_read1 = True
+                    radinfo_read_satinfo_content = True
                     self.nchannels = int(line_parts[2])
                 
                 elif (line_parts[0] == 'RADINFO_READ:' and line_parts[1] == 'guess'):
@@ -417,7 +417,7 @@ class GSISatelliteRadianceChannelHv(object):
                     if BIAS_CORR_COEF_STR in self.config.vars_to_harvest:
                         """proceed with bias correction coefficients
                         """
-                        radinfo_read2 = True
+                        radinfo_read_bias_corr_coef = True
                     
                 elif line_parts[0] == 'rad' and line_parts[2] == 'penalty_all=':
                     """proceed with channel statistics
