@@ -69,6 +69,10 @@ def test_only_stats():
     assert data[-1].observation_type=='ssu_tirosn'
 
 def test_bad_config():
+    """test that a misconfigured config_dict does not result in data being
+    returned by the harvester
+    """
+    
     bad_config_dict = {'harvester_name': 
                             hv_registry.GSI_SATELLITE_RADIANCE_CHANNEL,
                        'filename': FIT_FILE_PATH,

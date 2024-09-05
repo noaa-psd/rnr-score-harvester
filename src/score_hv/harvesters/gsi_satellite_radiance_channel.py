@@ -161,11 +161,21 @@ class GSISatelliteRadianceChannelHv(object):
                 for channel_index, series_number in enumerate(series_num_list):
                     """return data usage info (by channel)
                     """
-                    assert obs_type == self.channels[series_number][
-                                           'observation_type']
-                    assert self.obs_type_channels[obs_type][
-                               channel_index] == self.channels[series_number][
-                                                     'channel']
+                    
+                    # make sure we have the correct obs_type and channel
+                    if obs_type != self.channels[series_number][
+                                                           'observation_type']:
+                        raise ValueError("Expected observation type "
+                         f"{self.channels[series_number]['observation_type']}, "
+                         f"but got {obs_type}")
+                    
+                    if self.obs_type_channels[obs_type][
+                               channel_index] != self.channels[series_number][
+                                                     'channel']:
+                        raise ValueError("Expected channel "
+                            f"{self.channels[series_number]['channel']}, "
+                f"but got {self.obs_type_channels[obs_type][channel_index]}")
+                
                     values_by_channel.append(
                         self.channels[series_number]['data_usage_dict'][var]
                     )
@@ -199,13 +209,7 @@ class GSISatelliteRadianceChannelHv(object):
                                 """
                                 channel_stat_dict = channel_stats_dict[
                                                             series_number][stat]
-                                
-                                assert obs_type == channel_stat_dict[
-                                                             'observation_type']
-                                assert self.obs_type_channels[
-                                    obs_type][channel_index
-                                    ] == channel_stat_dict['channel_number']
-                                    
+
                                 values_by_channel.append(
                                                     channel_stat_dict['value'])
                                 longnames.append(channel_stat_dict['longname'])
@@ -234,14 +238,19 @@ class GSISatelliteRadianceChannelHv(object):
         """iterate through the requested statistics and extract relevant data
         """
         series_number = int(line_parts[0]) # from satinfo file, index from 1 
-        #channel_index = series_number - 1 # from self.channels, index from 0
         channel_number = int(line_parts[1])
         observation_type = line_parts[2]
         
         # make sure we have the correct channel
-        #assert self.channels[channel_index].series_number==series_number
-        assert self.channels[series_number]['observation_type']==observation_type
-        assert self.channels[series_number]['channel'] == channel_number      
+        if self.channels[series_number]['observation_type'] != observation_type:
+            raise ValueError(f"Expected observation type "
+                      "{self.channels[series_number]['observation_type']}, "
+                      f"but got {observation_type}")
+
+        if self.channels[series_number]['channel'] != channel_number:
+            raise ValueError(f"Expected channel number " 
+                f"{self.channels[series_number]['channel']}, but "
+                f"got {channel_number}")
         
         self.channel_stats[self.gsi_stage][series_number] = dict()
         for stat in self.config.stats_to_harvest:
@@ -272,7 +281,7 @@ class GSISatelliteRadianceChannelHv(object):
         
 
             self.channel_stats[self.gsi_stage][series_number][stat] = {
-                                        'channel_number': int(line_parts[1]),
+                                        'channel_number': channel_number,
                                         'observation_type': observation_type,
                                         'value': value,
                                         'longname': longname}
@@ -295,7 +304,6 @@ class GSISatelliteRadianceChannelHv(object):
                 """
 
                 series_number = int(line_parts[0])
-                #channel_index = series_number - 1
                 observation_type = line_parts[1]
                 
                 line2list = line.split('=')
@@ -360,13 +368,17 @@ class GSISatelliteRadianceChannelHv(object):
                 """
 
                 series_number = int(line_parts[0])
-                #channel_index = series_number - 1
                 
                 # partial assurance that this is the correct channel, by name
-                assert line_parts[1] == self.channels[series_number]['observation_type']
+                if line_parts[1] != self.channels[
+                                            series_number]['observation_type']:
+                    raise ValueError("Expected observation type "
+                        f"{self.channels[series_number]['observation_type']}, "
+                        f"but got {line_parts[1]}")
+                        
                 bias_corr_coef = line_parts[2:]
                 
-                if len(bias_corr_coef) == N_BIAS_CORR_COEF: # there should always be 12 channels
+                if len(bias_corr_coef) == N_BIAS_CORR_COEF: # there should always be 12 bias correction coefficients
                     self.channels[series_number
                     ]['data_usage_dict'][BIAS_CORR_COEF_STR].extend(
                                                                 map(float, 
