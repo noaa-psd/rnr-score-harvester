@@ -32,4 +32,5 @@ VALID_CONFIG_DICT = {
 
 def test_ioda_sst_meta():
     data = harvest(VALID_CONFIG_DICT)
-    print(data)
+    assert data.filename == IODA_SST_DATA
+    assert data.date_time == '2015-08-20 12:00:00'
