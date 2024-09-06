@@ -10,6 +10,7 @@ from score_hv.harvesters.innov_netcdf import InnovStatsCfg, InnovStatsHv
 from score_hv.harvesters.obs_log import ObsInfoCfg, ObsInfoHv
 from score_hv.harvesters.inc_logs import LogIncCfg, LogIncHv
 from score_hv.harvesters.daily_bfg import DailyBFGConfig, DailyBFGHv
+from score_hv.harvesters.ioda_meta_netcdf import IodaMetaCfg, IodaMetaHv
 
 NAMED_TUPLES_LIST = 'tuples_list'
 PANDAS_DATAFRAME = 'pandas_dataframe'
@@ -17,6 +18,7 @@ INNOV_NETCDF = 'innov_stats_netcdf'
 OBS_INFO_LOG = 'obs_info_log'
 INC_LOGS = 'inc_logs'
 DAILY_BFG = 'daily_bfg'
+IODA_META_NETCDF = 'ioda_meta_netcdf'
 
 Harvester = namedtuple('Harvester', ('name', 'config_handler', 'data_parser'),)
 
@@ -39,5 +41,9 @@ harvester_registry = {INNOV_NETCDF: Harvester(
                       DAILY_BFG: Harvester(
                           'Daily mean statistics from background forecast data',
                           DailyBFGConfig,
-                          DailyBFGHv)
+                          DailyBFGHv),
+                      IODA_META_NETCDF: Harvester(
+                          'meta data contained in ioda formatted netcdf files',
+                          IodaMetaCfg,
+                          IodaMetaHv)
                       }

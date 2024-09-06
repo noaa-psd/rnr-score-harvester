@@ -57,7 +57,7 @@ class IodaMetaCfg(ConfigInterface):
         self.harvest_filename = self.config_data.get('filename')
 
 @dataclass
-class ObsInfoHv:
+class IodaMetaHv:
     """
     Harvester dataclass used to parse metadata from ioda nc files
 
