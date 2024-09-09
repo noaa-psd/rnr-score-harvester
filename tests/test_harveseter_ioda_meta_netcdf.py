@@ -30,7 +30,20 @@ VALID_CONFIG_DICT = {
     'filename': file_path_ioda_data
 }
 
+#Test the ioda SST file is being parsed correctly
+#Values being tested against are independently sourced from the file
 def test_ioda_sst_meta():
     data = harvest(VALID_CONFIG_DICT)
     assert data.filename == IODA_SST_DATA
     assert data.date_time == '2015-08-20 12:00:00'
+    assert data.num_locs == 1880468
+    assert data.num_vars == 2
+    assert np.array_equal(data.variable_names, ['sea_surface_temperature', 'sea_surface_skin_temperature'])
+    assert data.has_PreQC == True
+    assert data.has_ObsError == True
+    assert data.sensor == "AVHRR_GAC"
+    assert data.platform == "NOAA-19"
+    assert data.ioda_layout == "ObsGroup"
+    assert data.processing_level == "L3U"
+    assert data.thinning == 0.95
+    assert data.ioda_version == 'v3'
