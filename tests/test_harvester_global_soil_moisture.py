@@ -51,6 +51,9 @@ def test_gridcell_area_conservation(tolerance=0.001):
     gridcell_area_data.close()
 
 def test_variable_names():
+    """Here we are testing two variables.  The daily_bfg harvester
+       should return values for both variables at once.
+       """
     expected_variables = ['soill4', 'soilm'] 
     assert VALID_CONFIG_DICT['variable'] == expected_variables
 
