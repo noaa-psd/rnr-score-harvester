@@ -58,6 +58,9 @@ def test_gridcell_area_conservation(tolerance=0.001):
     gridcell_area_data.close()
 
 def test_variable_names():
+    """Here we are testing two variables.  The daily_bfg harvester
+       should return values for both variables at once.
+       """
     expected_variables = ['soilt4', 'tg3'] 
     assert VALID_CONFIG_DICT['variable'] == expected_variables
 
@@ -78,6 +81,9 @@ def test_global_mean_values(tolerance=0.001):
         When averaged together, these files represent a 24 hour mean. The 
         average values hard-coded in this test was calculated from 
         forecast files using a separate python code.
+
+        In this test there are four regions.  The daily_bfg harvester will return
+        the values of all four regions at once.  
     """
     data1 = harvest(VALID_CONFIG_DICT)
 
