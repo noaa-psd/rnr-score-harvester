@@ -29,7 +29,13 @@ class VarStatsCatalog :
         self.minimum=[]
         self.maximum=[]
         self.stats=stats_list
-   
+  
+    def clear_requested_statistics(self):
+        self.weighted_averages=[]
+        self.variances=[]
+        self.minimum=[]
+        self.maximum=[]
+
     def calculate_requested_statistics(self,weights,temporal_mean):
         """This function calls the methods to calculate the statistics
            requested by the user. If the weights and/or temporal_mean
@@ -61,7 +67,7 @@ class VarStatsCatalog :
                self.find_maximum_value(temporal_mean)
 
     def calculate_weighted_average(self,weights,temporal_mean):
-        """This function calculates a weighted average  
+        """This method calculates a weighted average  
            for the variable data passed in from
            the calling function calcuate_requested_statistics. 
            Parameters:
@@ -77,9 +83,9 @@ class VarStatsCatalog :
 
     def calculate_var_variance(self,weights,temporal_mean):
         """
-          This function returns the gridcell weighted variance of the requested variables using
+          This method returns the gridcell weighted variance of the requested variables using
           the following formula:
-          variance = sum_R{ w_i * (x_i - xbar)^2 },
+          variance = sum_R( w_i * (x_i - xbar)^2 ),
           where sum_R represents the summation for each value x_i over the region of 
           interest R with normalized gridcell area weights w_i and weighted mean xbar
           Parameters:
@@ -99,29 +105,29 @@ class VarStatsCatalog :
            raise ValueError(msg)
 
         # Calculate the weighted mean (xbar) for the two-dimensional array
-        weighted_sum = np.sum(weights * temporal_mean)
-        sum_of_weights = np.sum(weights)
+        weighted_sum = np.nansum(weights * temporal_mean)
+        sum_of_weights = np.nansum(weights)
         weighted_average = weighted_sum / sum_of_weights
-        value = np.sum(weights * (temporal_mean - weighted_average) ** 2) / sum_of_weights 
+        value = np.nansum(weights * (temporal_mean - weighted_average) ** 2) / sum_of_weights 
         self.variances.append(value)
         
     def find_minimum_value(self,temporal_mean):
         """
-          This function finds the minimum values of the temporal_means array 
+          This method finds the minimum values of the temporal_means array 
           Parameters:
           temporal_means:The array of means for the requested variable that
                           is calculated in the calling script.
           Return:Nothing is returned.
           """
-        self.minimum.append(np.ma.min(temporal_mean))
+        self.minimum.append(np.nanmin(temporal_mean))
 
     def find_maximum_value(self,temporal_mean):
         """
-          This function finds the maximum value of the temporal_means array. 
+          This method finds the maximum value of the temporal_means array. 
           Parameters:
           temporal_means:The array of means for the requested variable that is
                          calcuated in the calling script.
           Return:Nothing is returned.
           """
-        self.maximum.append(np.ma.max(temporal_mean))
+        self.maximum.append(np.nanmax(temporal_mean))
 
