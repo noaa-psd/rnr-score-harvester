@@ -28,7 +28,7 @@ DEFAULT_REGION = {'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long':
   This mask is different than the user requested mask.
   """  
 VARIABLES_TO_MASK = ['soill4', 'soilm', 'soilt4', 'tg3']
-
+VALID_MASKS = ['land','ocean','sea', 'ice']
 """Variables of interest that come from the background forecast data.
 Commented out variables can be uncommented to generate gridcell weighted
 statistics but are in development and are currently not fully supported.
@@ -272,7 +272,7 @@ class DailyBFGConfig(ConfigInterface):
            for mask in self.surface_mask:
                if mask not in VALID_MASKS:
                   msg = f'The mask: {mask} is not a supported mask. ' \
-                        f'Valid masks are: "land, ocean , ice.'  
+                        f'Valid masks are: "land, ocean ,sea, ice.'  
                   raise ValueError(msg)
     
     def get_regions(self):
@@ -376,14 +376,15 @@ class DailyBFGHv(object):
           mask_instance = MaskCatalog().  The sotyp variable
           on the dataset is used to distinguish between 
           land,ocean and ice. 
-          ocean = vaues of 0
-          ice   = values of 16
-          land  = values between ocean and ice.
+          ocean = sotyp has vaues of 0
+          sea   = sotyp has values of 0
+          ice   = sotyp has values of 16
+          land  = sotyp has values between ocean and ice.
           """
         soil_type = 'sotyp'  
         check_variable_exists(soil_type,dataset_variable_names) 
         soil_type_variable = xr_dataset['sotyp']  
-        mask_instance = MaskCatalog(soil_type_variable)
+        mask_instance = MaskCatalog(self.config.surface_mask,soil_type_variable)
         
         for i, variable in enumerate(self.config.get_variables()):
             """ 
@@ -403,7 +404,7 @@ class DailyBFGHv(object):
                  check_variable_exists(var_name,dataset_variable_names)
                  variable_data = xr_dataset[variable]
                  if var_name in VARIABLES_TO_MASK:
-                    variable_data = mask_instance.mask_variable(var_name,variable_data,xr_dataset)
+                    variable_data = mask_instance.initial_mask_of_variable(var_name,variable_data)
                     
                  variable_data = mask_instance.replace_bad_values_with_nan(variable_data)
                  if 'long_name' in variable_data.attrs:
@@ -431,11 +432,16 @@ class DailyBFGHv(object):
                 normalized_weights = calculate_and_normalize_solid_angle(sum_global_weights,region_weights)
                 
                 if self.config.surface_mask != None:
-                   land_mask = xr_dataset['land'] #'land' is the name of variable in the bfg file. 
-                   region_land_mask = regions_catalog.get_region_data(iregion,land_mask)
-                   check_array_dimensions(region_variable_data,region_land_mask)
-                   landmask_array = define_landmask_array(self.config.surface_mask,region_land_mask)
-                   landmask_array_firsttime = landmask_array.isel(time=0)
+                   """
+                     Subset the soil_type_variable into the region requested by the user.
+                     """
+                   region_mask = regions_catalog.get_region_data(iregion,soil_type_variable)
+                   check_array_dimensions(region_variable_data,region_mask)
+                   """
+                     Delete the values in the region_mask that are not wanted by the user.
+                     """
+                   masked_array = mask_instance.user_mask_array(region_mask)
+                   masked_array_firsttime = masked_array.isel(time=0)
                    """
                       Adding the drop=False keeps the original xarray.DataArray structure. That is 
                       it keeps the original dimension names and metadata. Where the dimension names 
@@ -444,19 +450,13 @@ class DailyBFGHv(object):
                            landmasks_array is of type xarray.core.dataarray.DataArray.
                            normalized_weights is of type xarray.core.dataarray.DataArray
                       """
-                   region_variable_data = region_variable_data.where(landmask_array, drop=False)
-                   normalized_weights = normalized_weights.where(landmask_array_firsttime,drop=False)
+                   region_variable_data = region_variable_data.where(masked_array, drop=False)
+                   normalized_weights = normalized_weights.where(masked_array_firsttime,drop=False)
 
                 # Compute the mean over the time dimension. 
                 value = region_variable_data.mean(dim='time',skipna=True)
-                cregion = str(iregion)
-                filename = var_name+"_"+cregion+".nc" 
-                value.name = var_name
-                value.to_netcdf(filename)
-                normalized_weights.name = "weights"
                 temporal_means.append(value)
                 normalized_weights = normalized_weights.squeeze(axis=0)
-                normalized_weights.to_netcdf(filename,mode='a')
                 """
                    Here we pass the normalized_weights and the temporal_mean into the 
                    stats class.  
@@ -476,16 +476,16 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_instance.weighted_averages 
-
+                
                 elif statistic == 'variance':
                     value = var_stats_instance.variances
                                          
                 elif statistic == 'maximum':
                     value = var_stats_instance.maximum
-                    
+                       
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
-                   
+                    
                 harvested_data.append(HarvestedData(
                                       self.config.harvest_filenames,
                                        statistic, 
