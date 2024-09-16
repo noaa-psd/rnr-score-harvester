@@ -10,23 +10,45 @@ import xarray as xr
 import pytest
 import pdb
 
+VALID_MASKS = ['land','ocean','sea', 'ice']
+
 class MaskCatalog:
-    def __init__(self,soil_type_variable):
+    def __init__(self,user_mask_value,soil_type_values):
         """
           Here we initalize the MaskCatalog class.
           """
-        self.name = None
-        self.data_mask = soil_type_variable
+        self.name = None 
+        self.user_mask = user_mask_value
+        """The variable name on the data set
+           that is used for masking is "sotyp".
+           The sotyp array values are passed in from the
+           calling routine where it is read from
+           the data set.
+           ocean = sotyp has vaues of 0
+           sea   = sotyp has values of 0
+           ice   = sotyp has values of 16
+           land  = sotyp has values between ocean and ice.
+           """
+        self.data_mask = soil_type_values 
 
-    def mask_variable(self,var_name,variable_data,dataset):
+    def initial_mask_of_variable(self,var_name,variable_data):
         """
-          This method does the initial masking of special 
-          variables. These variables are automatically masked.
-          land soil variables = soill4,soilm,soilt4 and tg3 
-          ocean,ice,atmos. 
+          This method does the initial masking special variables.
+          The land variables that are masked initially are:
+          soill4,soilm,soilt4 and tg3. 
           It uses the sotyp(soil type) variable in the data set.
+          Parameters:
+          var_name - The variable name.
+          varaiable_data - The initial variable data with no masking.
+          return - The variable data is returned with the ocean and ice
+                   values set to missing.
           """
+        
         self.name = var_name 
+        """
+          The values of 0 and 16 in the sotyp variable are used to delete values
+          over ocean and ice.
+          """
         masked_data = variable_data.where((self.data_mask != 0) & (self.data_mask != 16))
         return(masked_data)
 
@@ -63,6 +85,19 @@ class MaskCatalog:
         masked_variable = variable_data.where(mask,np.nan)
         return(masked_variable)
 
-#     def apply_user_mask(self,iregion)
         
-
+    def user_mask_array(self,region_mask):
+        """
+         The user has requested a mask. Here we keep only the
+         type of data that the user wants.  
+         Parameters: 
+         region_mask - This is the sotyp variable read in from the
+                       bfg data file.   
+         Return - The mask array is returned.  This will contain
+                  boolean values. True for grid points we want and False
+                  for grid points we do not want.
+         """
+        if 'land' in self.user_mask:
+            masked_array = ~region_mask.isin([0, 16])
+        return(masked_array)    
+      
