@@ -148,9 +148,12 @@ class GeoRegionsCatalog:
           method, add_user_region, above are used to determine the 
           indices.
           Parameters:
-          - returns: The lat_indices and lon_indices.  These lists 
-            return the start and end indices as tuples. 
-            """
+          region_index - The number of the region that the user 
+                         has defined by the key word-name. There
+                         can be multiple regions.
+          returns - The lat_indices and lon_indices.  These lists 
+                  return the start and end indices as tuples. 
+          """
         num_long = len(self.longitude_values)
         num_lat = len(self.latitude_values)
         step_size = self.longitude_values[num_long-1]/num_long
@@ -190,9 +193,18 @@ class GeoRegionsCatalog:
         return (lat_start_index,lat_end_index,long1_start_index,long1_end_index,long2_start_index,long2_end_index) 
 
     def get_region_data(self,region_index,data):
-        """ The data.isel is a xarray method that selects a range of indices
-            along the grid_yt and grid_xt dimension.
-            """
+        """
+          This method returns the data which corresponds to the user selected
+          region depending on the region indicies. The region is a subset of the
+          original variable data.
+          The data.isel is a xarray method that selects a range of indices
+          along the grid_yt and grid_xt dimension.
+          Parameters:
+          region_index - The number of the region to be sub-regioned..
+          data - The full grid variable data to be sub-regioned based on the 
+                 start and ending indices returned from get_region_indices.
+          return - The variable data sub-setted into the region.
+          """           
         lat_start_index,lat_end_index,long1_start_index,long1_end_index,long2_start_index, \
         long2_end_index = self.get_region_indices(region_index)
          
