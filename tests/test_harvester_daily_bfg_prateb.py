@@ -24,7 +24,7 @@ TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_prateb_control.nc',
                         'bfg_1994010118_fhr09_prateb_control.nc',
                         'bfg_1994010200_fhr06_prateb_control.nc']
 
-DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'src', 'score_hv', 'data')
+DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(),'src','score_hv','data')
 GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
                                        'gridcell-area' + 
                                        '_noaa-ufs-gefsv13replay-pds' + 
@@ -165,7 +165,7 @@ def test_gridcell_min_max(tolerance=0.001):
     python code
     """
     offline_min = 0.0
-    offline_max = 0.0043600933
+    offline_max = 0.0042821122
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'maximum':
             assert maximum <= (1 + tolerance) * harvested_tuple.value

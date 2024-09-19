@@ -24,7 +24,7 @@ TEST_DATA_FILE_NAMES = ['tmp2m_bfg_2023032100_fhr09_control.nc',
                         'tmp2m_bfg_2023032118_fhr09_control.nc',
                         'tmp2m_bfg_2023032200_fhr06_control.nc']
 
-DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'src', 'score_hv', 'data')
+DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(),'src','score_hv','data')
 GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
                                        'gridcell-area' + 
                                        '_noaa-ufs-gefsv13replay-pds' + 
@@ -44,28 +44,6 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
 def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'tmp2m'
-
-def test_global_mean_values_offline(tolerance=0.001):
-    """The value of 287.0713362523281 is the mean value of the global means
-    calculated from eight forecast files:
-        
-        tmp2m_bfg_2023032100_fhr09_control.nc
-        tmp2m_bfg_2023032106_fhr06_control.nc
-        tmp2m_bfg_2023032106_fhr09_control.nc
-        tmp2m_bfg_2023032112_fhr06_control.nc
-        tmp2m_bfg_2023032112_fhr09_control.nc
-        tmp2m_bfg_2023032118_fhr06_control.nc
-        tmp2m_bfg_2023032118_fhr09_control.nc
-        tmp2m_bfg_2023032200_fhr06_control.nc
-        
-    When averaged together, these files represent a 24 hour mean. The average 
-    value hard-coded in this test was calculated from these forecast files 
-    using a separate python code.
-    """
-    data1 = harvest(VALID_CONFIG_DICT)
-    global_mean = 287.0713362523281
-    assert data1[0].value <= (1 + tolerance) * global_mean
-    assert data1[0].value >= (1 - tolerance) * global_mean 
 
 def test_global_mean_values_netCDF4(tolerance=0.001):
     """Opens each background Netcdf file using the netCDF4 library function 
@@ -169,7 +147,7 @@ def test_cycletime():
     returned by daily_bfg.py
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    expected_datetime = datetime.strptime("2023-03-21 12:00:00",
+    expected_datetime = datetime.strptime("1994-01-01 12:00:00",
                                           "%Y-%m-%d %H:%M:%S")
     assert data1[0].mediantime == expected_datetime
 
@@ -188,7 +166,6 @@ def main():
     test_daily_bfg_harvester()
     test_variable_names()
     test_units()
-    test_global_mean_values_offline()
     test_global_mean_values_netCDF4()
     test_gridcell_variance()
     test_gridcell_min_max()

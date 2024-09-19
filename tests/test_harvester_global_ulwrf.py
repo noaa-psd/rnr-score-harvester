@@ -13,16 +13,16 @@ from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
 from score_hv.harvesters.innov_netcdf import Region, InnovStatsCfg
 
-TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_ulwrf_avetoa_control.nc',
-                        'bfg_1994010106_fhr06_ulwrf_avetoa_control.nc',
-                        'bfg_1994010106_fhr09_ulwrf_avetoa_control.nc',
-                        'bfg_1994010112_fhr06_ulwrf_avetoa_control.nc',
-                        'bfg_1994010112_fhr09_ulwrf_avetoa_control.nc',
-                        'bfg_1994010118_fhr06_ulwrf_avetoa_control.nc',
-                        'bfg_1994010118_fhr09_ulwrf_avetoa_control.nc',
-                        'bfg_1994010200_fhr06_ulwrf_avetoa_control.nc']
+TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_toa_radiative_flux_control.nc',
+                        'bfg_1994010106_fhr06_toa_radiative_flux_control.nc',
+                        'bfg_1994010106_fhr09_toa_radiative_flux_control.nc',
+                        'bfg_1994010112_fhr06_toa_radiative_flux_control.nc',
+                        'bfg_1994010112_fhr09_toa_radiative_flux_control.nc',
+                        'bfg_1994010118_fhr06_toa_radiative_flux_control.nc',
+                        'bfg_1994010118_fhr09_toa_radiative_flux_control.nc',
+                        'bfg_1994010200_fhr06_toa_radiative_flux_control.nc']
 
-DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'src', 'score_hv', 'data')
+DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(),'src','score_hv','data')
 GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
                                        'gridcell-area' +
                                        '_noaa-ufs-gefsv13replay-pds' +
@@ -60,14 +60,14 @@ def test_global_mean_values_offline(tolerance=0.001):
         The value of 242.84720151427342 the mean value of the 
         global meas calculated from these eight forecast files:
 
-        bfg_1994010100_fhr09_ulwrf_avetoa_control.nc
-        bfg_1994010106_fhr06_ulwrf_avetoa_control.nc
-        bfg_1994010106_fhr09_ulwrf_avetoa_control.nc
-        bfg_1994010112_fhr06_ulwrf_avetoa_control.nc
-        bfg_1994010112_fhr09_ulwrf_avetoa_control.nc
-        bfg_1994010118_fhr06_ulwrf_avetoa_control.nc
-        bfg_1994010118_fhr09_ulwrf_avetoa_control.nc
-        bfg_1994010200_fhr06_ulwrf_avetoa_control.nc
+        bfg_1994010100_fhr09_toa_radiative_flux_control.nc
+        bfg_1994010106_fhr06_toa_radiative_flux_control.nc
+        bfg_1994010106_fhr09_toa_radiative_flux_control.nc
+        bfg_1994010112_fhr06_toa_radiative_flux_control.nc
+        bfg_1994010112_fhr09_toa_radiative_flux_control.nc
+        bfg_1994010118_fhr06_toa_radiative_flux_control.nc
+        bfg_1994010118_fhr09_toa_radiative_flux_control.nc
+        bfg_1994010200_fhr06_toa_radiative_flux_control.nc
         
         When averaged together, these files represent a 24 hour mean. The 
         average value hard-coded in this test was calculated from 
@@ -81,7 +81,7 @@ def test_global_mean_values_offline(tolerance=0.001):
 def test_global_mean_values_netCDF4(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the expected value
-    of the provided variable.  In this case ulwrf_avetoa.
+    of the provided variable.  In this case toa_radiative_flux.
     """
     data1 = harvest(VALID_CONFIG_DICT)
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
@@ -109,7 +109,7 @@ def test_global_mean_values_netCDF4(tolerance=0.001):
 def test_gridcell_min_max(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the maximum
-    of the provided variable.  In this case ulwrf_avetoa.
+    of the provided variable.  In this case toa_radiative_flux.
     """
     data1 = harvest(VALID_CONFIG_DICT)
 
@@ -153,7 +153,7 @@ def test_gridcell_min_max(tolerance=0.001):
 def test_gridcell_variance(tolerance=0.001):
     """Opens each background Netcdf file using the
     netCDF4 library function Dataset and computes the variance
-    of the provided variable.  In this case ulwrf_avetoa.
+    of the provided variable.  In this case toa_radiative_flux.
     """
     data1 = harvest(VALID_CONFIG_DICT)
 

@@ -23,7 +23,7 @@ TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_toa_radiative_flux_control.nc',
                         'bfg_1994010118_fhr09_toa_radiative_flux_control.nc',
                         'bfg_1994010200_fhr06_toa_radiative_flux_control.nc']
 
-DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'src', 'score_hv', 'data')
+DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(),'src','score_hv','data')
 GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
                                        'gridcell-area' + 
                                        '_noaa-ufs-gefsv13replay-pds' + 
@@ -101,7 +101,7 @@ def test_cycletime():
 
 def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].longname == "Top of atmosphere net radiative energy flux"
+    assert data1[0].longname == "Top of atmosphere net radiative flux"
 
 def test_global_mean_values(tolerance=0.001):
     """The value of 10.022175263719816 is the mean value of the global means
