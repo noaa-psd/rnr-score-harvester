@@ -24,7 +24,7 @@ TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_soil_control.nc',
                         'bfg_1994010118_fhr09_soil_control.nc',
                         'bfg_1994010200_fhr06_soil_control.nc']
 
-DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(), 'data')
+DATA_DIR = os.path.join(Path(__file__).parent.parent.resolve(),'src','score_hv','data')
 GRIDCELL_AREA_DATA_PATH = os.path.join(DATA_DIR,
                                        'gridcell-area' +
                                        '_noaa-ufs-gefsv13replay-pds' +
