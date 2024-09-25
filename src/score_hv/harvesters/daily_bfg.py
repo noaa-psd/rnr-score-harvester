@@ -34,7 +34,8 @@ Commented out variables can be uncommented to generate gridcell weighted
 statistics but are in development and are currently not fully supported.
 """
 VALID_VARIABLES  = (
-                    #'icetk', # sea ice thickness (m)
+                    'icetk', # sea ice thickness (m)
+                    'icec', # surface ice concentration
                     'lhtfl_ave',# surface latent heat flux (W/m**2)
                     'shtfl_ave', # surface sensible heat flux (W/m**2)
                     'dlwrf_ave', # surface downward longwave flux (W/m**2)
@@ -45,15 +46,17 @@ VALID_VARIABLES  = (
                     'netef_ave',#surface energy balance (W/m**2)
                     'prate_ave', # surface precip rate (mm weq. s^-1)
                     #'pressfc', # surface pressure (Pa)
-                    #'snod', # surface snow depth (m)
+                    'snowc_ave', # snow cover -GFS lsm
+                    'snod', # surface snow depth (m)
                     'soill4', # liquid soil moisture at layer-4 (?)
                     'soilm', # total column soil moisture content (mm weq.)
                     'soilt4', # soil temperature unknown layer 4 (K)
                     'tg3', # deep soil temperature (K)
                     'tmp2m', # 2m (surface air) temperature (K)
                     'tmpsfc', # surface temperature (K)
+                    'tsnowp', #accumulated surface snow (kg/m**2)
                     'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
-                    #'weasd', # surface snow water equivalent (mm weq.)
+                    'weasd', # surface snow water equivalent (mm weq.)
                     )
 
 HarvestedData = namedtuple('HarvestedData', ['filenames',
@@ -398,7 +401,7 @@ class DailyBFGHv(object):
                  units = "W/m**2"
             elif var_name == "netrf_avetoa":
                  variable_data = calculate_toa_radative_flux(xr_dataset,dataset_variable_names)
-                 longname =" Top of atmosphere net radiative flux"
+                 longname ="Top of atmosphere net radiative flux"
                  units = "W/m**2"
             else: 
                  check_variable_exists(var_name,dataset_variable_names)
@@ -482,7 +485,7 @@ class DailyBFGHv(object):
                                          
                 elif statistic == 'maximum':
                     value = var_stats_instance.maximum
-                       
+                    
                 elif statistic == 'minimum':
                     value = var_stats_instance.minimum
                     
