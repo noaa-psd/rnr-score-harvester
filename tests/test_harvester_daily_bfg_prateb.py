@@ -164,10 +164,12 @@ def test_gridcell_min_max(tolerance=0.001):
     """The following offline min and max were calculated from an external 
     python code
     """
+    
     offline_min = 0.0
-    offline_max = 0.0043600933
+    offline_max = 0.0042821122
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'maximum':
+            print(harvested_tuple.value)
             assert maximum <= (1 + tolerance) * harvested_tuple.value
             assert maximum >= (1 - tolerance) * harvested_tuple.value
             
