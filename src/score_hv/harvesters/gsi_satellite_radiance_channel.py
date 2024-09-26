@@ -19,6 +19,8 @@ BIAS_CORR_COEF_STR = 'bias_correction_coefficients'
 N_BIAS_CORR_COEF = 12
 
 # radiance data usage per channel from satinfo file
+# NASA GEOS: variables 'icld_det', 'icloud', 'iaeros' are not supported for
+# GSI analysis logs from NASA
 VALID_VARIABLES = (
         'var',
         'varch_cld',

@@ -38,6 +38,8 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.GSI_SATELLITE_RADIANCE_CHANNE
                                     'std')
                     }
                     
+# NASA GEOS test: variables 'icld_det', 'icloud', 'iaeros' are not supported for
+# GSI analysis logs from NASA
 VALID_CONFIG_DICT_GEOS_IT_1998 = {'harvester_name': 
                                   hv_registry.GSI_SATELLITE_RADIANCE_CHANNEL,
                      'filename': FIT_FILE_PATH_GEOS_IT_1998,
