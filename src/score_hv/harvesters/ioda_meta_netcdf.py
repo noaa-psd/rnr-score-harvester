@@ -24,7 +24,9 @@ HarvestedData = namedtuple(
     'HarvestedData',
     [
         'filename',
-        'date_time',
+        'file_date_time',
+        'min_date_time',
+        'max_date_time',
         'num_locs',
         'num_vars',
         'variable_name',
@@ -121,11 +123,26 @@ class IodaMetaHv:
 
         # variable_names = ''
 
-        # if 'MetaData' in dataset.groups:
-        #     group = dataset.groups['MetaData']
-        #     if 'variable_names' in group.variables:
-        #         variable = group.variables['variable_names']
-        #         variable_names = variable[:]
+        min_datetime = date_time
+        max_datetime = date_time
+
+        if 'MetaData' in dataset.groups:
+            group = dataset.groups['MetaData']
+            if 'datetime' in group.variables:
+                #value used in v2 is just datetimes
+                datetimes = group.variables['datetime']
+                min_datetime = format_datetime_string(np.min(datetimes))
+                max_datetime = format_datetime_string(np.max(datetimes))
+            if 'dateTime' in group.variables:
+                #the value used in v3 is units seconds since 1970
+                datetimes = group.variables['dateTime']
+                min_seconds = int(np.min(datetimes))
+                max_seconds = int(np.max(datetimes))
+                min_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=min_seconds)
+                max_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=max_seconds)
+                min_datetime = format_datetime_string(min_datetime_obj)
+                max_datetime = format_datetime_string(max_datetime_obj)
+
 
         valid_value_counts = {}
         if 'ObsValue' in dataset.groups:
@@ -156,6 +173,8 @@ class IodaMetaHv:
                 HarvestedData (
                     filename, 
                     date_time,
+                    min_datetime,
+                    max_datetime,
                     num_locs,
                     num_vars,
                     variable,
@@ -173,6 +192,10 @@ class IodaMetaHv:
 
         dataset.close()
         return harvested_data
+
+
+def format_datetime_string(datetime_obj):
+    return datetime_obj.strftime("%Y-%m-%d %H:%M:%S")
 
 def parse_filename(file_path):
     # Extract the file name from the full path
@@ -192,7 +215,7 @@ def parse_filename(file_path):
         dt = datetime.strptime(f"{date_str}{time_str}", "%Y%m%d%H%M%S")
         
         # Format the datetime string as 'YYYY-MM-DD HH:MM:SS'
-        formatted_datetime_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+        formatted_datetime_str = format_datetime_string(dt)
         
         return {
             'filename': filename,
@@ -218,7 +241,7 @@ def int_to_datetime_string(date_value):
         dt = datetime.strptime(date_str, "%Y%m%d%H")
         
         # Format the datetime object into 'YYYY-MM-DD HH:MM:SS'
-        formatted_datetime_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+        formatted_datetime_str = format_datetime_string(dt)
         
         return formatted_datetime_str
     else:
@@ -234,7 +257,6 @@ def format_int_based_datetime_string(datetime_str):
     dt = datetime.strptime(datetime_str, "%Y%m%d%H")
     
     # Format the datetime object into 'YYYY-MM-DD HH:MM:SS'
-    formatted_datetime_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+    formatted_datetime_str = format_datetime_string(dt)
     
     return formatted_datetime_str
-
