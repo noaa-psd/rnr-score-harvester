@@ -27,7 +27,8 @@ HarvestedData = namedtuple(
         'date_time',
         'num_locs',
         'num_vars',
-        'variable_names',
+        'variable_name',
+        'var_count',
         'has_PreQC',
         'has_ObsError',
         'sensor',
@@ -82,12 +83,14 @@ class IodaMetaHv:
 
         Returns
         -------
-        harvested_data: list of Harvested data for a given file, one per variable
+        harvested_data: list of Harvested data for a given file, one per variable, some data is file level for every variable
 
         'filename',
         'date_time',
         'num_locs',
+        'num_vars',
         'variable_name',
+        'var_count',
         'has_PreQC',
         'has_ObsError',
         'sensor',
@@ -116,13 +119,23 @@ class IodaMetaHv:
         if 'ObsError' in dataset.groups:
             has_ObsError = True
 
-        variable_names = ''
+        # variable_names = ''
 
-        if 'MetaData' in dataset.groups:
-            group = dataset.groups['MetaData']
-            if 'variable_names' in group.variables:
-                variable = group.variables['variable_names']
-                variable_names = variable[:]
+        # if 'MetaData' in dataset.groups:
+        #     group = dataset.groups['MetaData']
+        #     if 'variable_names' in group.variables:
+        #         variable = group.variables['variable_names']
+        #         variable_names = variable[:]
+
+        valid_value_counts = {}
+        if 'ObsValue' in dataset.groups:
+            group = dataset.groups['ObsValue']
+            for var_name in group.variables:
+                var = group.variables[var_name]
+                data = var[:]
+                flat_data = data.flatten()
+                var_count = np.ma.count(flat_data)
+                valid_value_counts[var_name] = var_count
 
         filename_parsed = parse_filename(self.config.harvest_filename) 
         ioda_version = filename_parsed['ioda_version']
@@ -138,22 +151,27 @@ class IodaMetaHv:
         if date_time is None:
             date_time = filename_parsed['formatted_datetime_str']
 
-        harvested_data = HarvestedData (
-            filename, 
-            date_time,
-            num_locs,
-            num_vars,
-            variable_names,
-            has_PreQC,
-            has_ObsError,
-            sensor,
-            platform,
-            ioda_layout,
-            processing_level,
-            thinning,
-            ioda_version
-        )
+        for variable in valid_value_counts:
+            harvested_data.append(
+                HarvestedData (
+                    filename, 
+                    date_time,
+                    num_locs,
+                    num_vars,
+                    variable,
+                    valid_value_counts[variable],
+                    has_PreQC,
+                    has_ObsError,
+                    sensor,
+                    platform,
+                    ioda_layout,
+                    processing_level,
+                    thinning,
+                    ioda_version
+                )
+            )
 
+        dataset.close()
         return harvested_data
 
 def parse_filename(file_path):
@@ -205,12 +223,6 @@ def int_to_datetime_string(date_value):
         return formatted_datetime_str
     else:
         raise TypeError(f"Input value must be of type numpy int32 or int, got {type(date_value)} instead.")
-
-# Example usage
-numpy_date_value = np.int32(2020070700)
-formatted_datetime = int_to_datetime_string(numpy_date_value)
-print("Formatted Datetime String:", formatted_datetime)
-
 
 def format_int_based_datetime_string(datetime_str):
     # Ensure the string is 10 characters long for the format 'YYYYMMDDHH'
