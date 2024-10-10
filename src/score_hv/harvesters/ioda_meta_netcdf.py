@@ -24,6 +24,7 @@ HarvestedData = namedtuple(
     'HarvestedData',
     [
         'filename',
+        'obs_day',
         'file_date_time',
         'min_date_time',
         'max_date_time',
@@ -88,7 +89,10 @@ class IodaMetaHv:
         harvested_data: list of Harvested data for a given file, one per variable, some data is file level for every variable
 
         'filename',
-        'date_time',
+        'obs_day',
+        'file_date_time',
+        'min_date_time',
+        'max_date_time',
         'num_locs',
         'num_vars',
         'variable_name',
@@ -100,6 +104,7 @@ class IodaMetaHv:
         'ioda_layout',
         'processing_level',
         'thinning',
+        'ioda_version',
         """
         harvested_data = []
         dataset = Dataset(self.config.harvest_filename, 'r')
@@ -121,29 +126,6 @@ class IodaMetaHv:
         if 'ObsError' in dataset.groups:
             has_ObsError = True
 
-        # variable_names = ''
-
-        min_datetime = date_time
-        max_datetime = date_time
-
-        if 'MetaData' in dataset.groups:
-            group = dataset.groups['MetaData']
-            if 'datetime' in group.variables:
-                #value used in v2 is just datetimes
-                datetimes = group.variables['datetime']
-                min_datetime = format_datetime_string(np.min(datetimes))
-                max_datetime = format_datetime_string(np.max(datetimes))
-            if 'dateTime' in group.variables:
-                #the value used in v3 is units seconds since 1970
-                datetimes = group.variables['dateTime']
-                min_seconds = int(np.min(datetimes))
-                max_seconds = int(np.max(datetimes))
-                min_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=min_seconds)
-                max_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=max_seconds)
-                min_datetime = format_datetime_string(min_datetime_obj)
-                max_datetime = format_datetime_string(max_datetime_obj)
-
-
         valid_value_counts = {}
         if 'ObsValue' in dataset.groups:
             group = dataset.groups['ObsValue']
@@ -157,6 +139,7 @@ class IodaMetaHv:
         filename_parsed = parse_filename(self.config.harvest_filename) 
         ioda_version = filename_parsed['ioda_version']
         filename = filename_parsed['filename']
+        obs_day = filename_parsed['formatted_datetime_str']
 
         #handle various options for reading datetime to make sure we provide a cycle time
         if date_time is str:
@@ -166,12 +149,38 @@ class IodaMetaHv:
             date_time = int_to_datetime_string(date_time)
 
         if date_time is None:
-            date_time = filename_parsed['formatted_datetime_str']
+            date_time = obs_day
+
+        #get the minimum / maximum datetime from the data
+        min_datetime = date_time
+        max_datetime = date_time
+
+        if 'MetaData' in dataset.groups:
+            group = dataset.groups['MetaData']
+            if 'datetime' in group.variables:
+                #value used in v2 is just strings of datetimes
+                datetimes = group.variables['datetime']
+                min_string = np.min(datetimes)
+                max_string = np.max(datetimes)
+                min_datetime_obj = datetime.strptime(min_string, '%Y-%m-%dT%H:%M:%SZ')
+                max_datetime_obj = datetime.strptime(max_string, '%Y-%m-%dT%H:%M:%SZ')
+                min_datetime = format_datetime_string(min_datetime_obj)
+                max_datetime = format_datetime_string(max_datetime_obj)
+            if 'dateTime' in group.variables:
+                #the value used in v3 is units seconds since 1970
+                datetimes = group.variables['dateTime']
+                min_seconds = int(np.min(datetimes))
+                max_seconds = int(np.max(datetimes))
+                min_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=min_seconds)
+                max_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=max_seconds)
+                min_datetime = format_datetime_string(min_datetime_obj)
+                max_datetime = format_datetime_string(max_datetime_obj)
 
         for variable in valid_value_counts:
             harvested_data.append(
                 HarvestedData (
-                    filename, 
+                    filename,
+                    obs_day, 
                     date_time,
                     min_datetime,
                     max_datetime,
