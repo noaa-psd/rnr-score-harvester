@@ -74,7 +74,7 @@ def test_ioda_sst_meta():
     assert sst_data.thinning == 0.95
     assert sst_data.ioda_version == 'v3'
 
-
+#Test insitu data stored in v2 for salinity and temp in one file, values are independently sourced from the file
 def test_ioda_insitu_v2_meta():
     data = harvest(VALID_CONFIG_INSITU_DICT)
     insitu_data_salinity = data[0]
@@ -115,6 +115,7 @@ def test_ioda_insitu_v2_meta():
     assert insitu_data_temperature.thinning == None
     assert insitu_data_temperature.ioda_version == 'v2'
 
+#Test institu data in v3 format with salinity and temp values, values are independently sourced from the file
 def test_ioda_insitu_v3_meta():
     data = harvest(VALID_CONFIG_INSITU_V3_DICT)
     insitu_data_salinity = data[0]
