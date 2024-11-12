@@ -9,14 +9,11 @@ from collections import namedtuple
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from netCDF4 import Dataset
-import pandas as pd
 import re
 import os 
 import numpy as np
 
 from score_hv.config_base import ConfigInterface
-from score_hv import file_utils
-from score_hv import hv_registry as hvr
 
 HARVESTER_NAME = 'ioda_meta_netcdf'
 
@@ -151,53 +148,61 @@ class IodaMetaHv:
         if date_time is None:
             date_time = obs_day
 
-        #get the minimum / maximum datetime from the data
+        #get the minimum / maximum datetime from the data, start with a default
         min_datetime = date_time
         max_datetime = date_time
 
         if 'MetaData' in dataset.groups:
             group = dataset.groups['MetaData']
-            if 'datetime' in group.variables:
-                #value used in v2 is just strings of datetimes
-                datetimes = group.variables['datetime']
-                min_string = np.min(datetimes)
-                max_string = np.max(datetimes)
-                min_datetime_obj = datetime.strptime(min_string, '%Y-%m-%dT%H:%M:%SZ')
-                max_datetime_obj = datetime.strptime(max_string, '%Y-%m-%dT%H:%M:%SZ')
-                min_datetime = format_datetime_string(min_datetime_obj)
-                max_datetime = format_datetime_string(max_datetime_obj)
-            if 'dateTime' in group.variables:
-                #the value used in v3 is units seconds since 1970
-                datetimes = group.variables['dateTime']
-                min_seconds = int(np.min(datetimes))
-                max_seconds = int(np.max(datetimes))
-                min_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=min_seconds)
-                max_datetime_obj = datetime(1970, 1, 1) + timedelta(seconds=max_seconds)
-                min_datetime = format_datetime_string(min_datetime_obj)
-                max_datetime = format_datetime_string(max_datetime_obj)
+        if 'datetime' in group.variables:
+            datetime_var = group.variables['datetime']  # This would be a string of datetime values (v2)
+        elif 'dateTime' in group.variables:
+            datetime_var = group.variables['dateTime']  # This would be time in seconds since 1970 (v3)
 
-        for variable in valid_value_counts:
-            harvested_data.append(
-                HarvestedData (
-                    filename,
-                    obs_day, 
-                    date_time,
-                    min_datetime,
-                    max_datetime,
-                    num_locs,
-                    num_vars,
-                    variable,
-                    valid_value_counts[variable],
-                    has_PreQC,
-                    has_ObsError,
-                    sensor,
-                    platform,
-                    ioda_layout,
-                    processing_level,
-                    thinning,
-                    ioda_version
+        # Iterate through each variable in 'ObsValue' for getting correct min and max datetime per variable
+        if 'ObsValue' in dataset.groups:
+            obs_group = dataset.groups['ObsValue']
+            for var_name in obs_group.variables:
+                var = obs_group.variables[var_name][:]
+                
+                # Get the corresponding datetime values for the variable
+                if datetime_var.dtype == np.int32 or datetime_var.dtype == np.int64:
+                    # Convert int datetime (seconds since 1970)
+                    datetimes = np.array([datetime(1970, 1, 1) + timedelta(seconds=int(dt)) for dt in datetime_var[:]])
+                else:
+                    # Convert string datetime
+                    datetimes = np.array([datetime.strptime(dt_str, '%Y-%m-%dT%H:%M:%SZ') for dt_str in datetime_var[:]])
+                
+                # Filter out NaN values in the variable and corresponding datetime values
+                valid_indices = ~np.isnan(var)
+                valid_datetimes = datetimes[valid_indices]
+                
+                # Calculate min/max datetime for the valid values
+                if len(valid_datetimes) > 0:
+                    min_datetime = format_datetime_string(np.min(valid_datetimes))
+                    max_datetime = format_datetime_string(np.max(valid_datetimes))
+
+                harvested_data.append(
+                    HarvestedData (
+                        filename,
+                        obs_day, 
+                        date_time,
+                        min_datetime,
+                        max_datetime,
+                        num_locs,
+                        num_vars,
+                        var_name,
+                        valid_value_counts[var_name],
+                        has_PreQC,
+                        has_ObsError,
+                        sensor,
+                        platform,
+                        ioda_layout,
+                        processing_level,
+                        thinning,
+                        ioda_version
+                    )
                 )
-            )
 
         dataset.close()
         return harvested_data
