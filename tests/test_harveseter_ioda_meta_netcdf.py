@@ -62,6 +62,8 @@ def test_ioda_sst_meta():
     assert sst_data.filename == IODA_SST_DATA
     assert sst_data.file_date_time == '2015-08-20 12:00:00'
     assert sst_data.num_locs == 1880468
+    assert sst_data.min_depth == None
+    assert sst_data.max_depth == None
     assert sst_data.num_vars == 2
     assert sst_data.variable_name == 'seaSurfaceSkinTemperature'
     assert sst_data.var_count == 1880468
@@ -85,6 +87,8 @@ def test_ioda_insitu_v2_meta():
     assert insitu_data_salinity.min_date_time == '2009-06-05 00:00:00'
     assert insitu_data_salinity.max_date_time == '2009-06-06 00:00:00'
     assert insitu_data_salinity.num_locs == 22825
+    assert insitu_data_salinity.min_depth == 0.0
+    assert insitu_data_salinity.max_depth == 3300.0
     assert insitu_data_salinity.num_vars == 2
     assert insitu_data_salinity.variable_name == 'sea_water_salinity'
     assert insitu_data_salinity.var_count == 18583
@@ -103,6 +107,8 @@ def test_ioda_insitu_v2_meta():
     assert insitu_data_temperature.min_date_time == '2009-06-05 00:00:00'
     assert insitu_data_temperature.max_date_time == '2009-06-06 00:00:00'
     assert insitu_data_temperature.num_locs == 22825
+    assert insitu_data_temperature.min_depth == 0.0
+    assert insitu_data_temperature.max_depth == 3300.0
     assert insitu_data_temperature.num_vars == 2
     assert insitu_data_temperature.variable_name == 'sea_water_temperature'
     assert insitu_data_temperature.var_count == 22788
@@ -126,6 +132,8 @@ def test_ioda_insitu_v3_meta():
     assert insitu_data_salinity.min_date_time == '2009-06-05 00:00:00'
     assert insitu_data_salinity.max_date_time == '2009-06-06 00:00:00'
     assert insitu_data_salinity.num_locs == 22825
+    assert insitu_data_salinity.min_depth == 0.0
+    assert insitu_data_salinity.max_depth == 3300.0
     assert insitu_data_salinity.num_vars == 2
     assert insitu_data_salinity.variable_name == 'salinity'
     assert insitu_data_salinity.var_count == 18583
@@ -144,6 +152,8 @@ def test_ioda_insitu_v3_meta():
     assert insitu_data_temperature.min_date_time == '2009-06-05 00:00:00'
     assert insitu_data_temperature.max_date_time == '2009-06-06 00:00:00'
     assert insitu_data_temperature.num_locs == 22825
+    assert insitu_data_temperature.min_depth == 0.0
+    assert insitu_data_temperature.max_depth == 3300.0
     assert insitu_data_temperature.num_vars == 2
     assert insitu_data_temperature.variable_name == 'waterTemperature'
     assert insitu_data_temperature.var_count == 22788

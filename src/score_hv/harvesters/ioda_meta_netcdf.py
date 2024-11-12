@@ -26,6 +26,8 @@ HarvestedData = namedtuple(
         'min_date_time',
         'max_date_time',
         'num_locs',
+        'min_depth',
+        'max_depth',
         'num_vars',
         'variable_name',
         'var_count',
@@ -151,6 +153,8 @@ class IodaMetaHv:
         #get the minimum / maximum datetime from the data, start with a default
         min_datetime = date_time
         max_datetime = date_time
+        min_depth = None
+        max_depth = None
 
         if 'MetaData' in dataset.groups:
             group = dataset.groups['MetaData']
@@ -158,6 +162,10 @@ class IodaMetaHv:
             datetime_var = group.variables['datetime']  # This would be a string of datetime values (v2)
         elif 'dateTime' in group.variables:
             datetime_var = group.variables['dateTime']  # This would be time in seconds since 1970 (v3)
+
+        depth_var = None
+        if 'depth' in group.variables:
+            depth_var = group.variables['depth']
 
         # Iterate through each variable in 'ObsValue' for getting correct min and max datetime per variable
         if 'ObsValue' in dataset.groups:
@@ -182,6 +190,12 @@ class IodaMetaHv:
                     min_datetime = format_datetime_string(np.min(valid_datetimes))
                     max_datetime = format_datetime_string(np.max(valid_datetimes))
 
+                if depth_var is not None:
+                    depths = np.array(depth_var[:])
+                    valid_depths = depths[valid_indices]
+                    min_depth = np.min(valid_depths)
+                    max_depth = np.max(valid_depths)
+
                 harvested_data.append(
                     HarvestedData (
                         filename,
@@ -190,6 +204,8 @@ class IodaMetaHv:
                         min_datetime,
                         max_datetime,
                         num_locs,
+                        min_depth,
+                        max_depth,
                         num_vars,
                         var_name,
                         valid_value_counts[var_name],
