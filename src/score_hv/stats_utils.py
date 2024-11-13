@@ -71,16 +71,19 @@ class VarStatsCatalog :
            for the variable data passed in from
            the calling function calcuate_requested_statistics. 
            Parameters:
-           weights: The weights are the normalized weights
-                    based on the solid angle calculation in the 
-                    calling routine. This is a NumPy array. 
+           normalized_weights: The weights are read from the a weights file in the 
+                               calling routine. This is a NumPy array.
            temporal_mean:the temporal means array that is calculated in
                          the calling function. This is a NumPy array.
+           return: None: The result is appended to self.weighted_averages.              
            """
-        weighted_sum = np.nansum(weights * temporal_mean)
-        value = weighted_sum.item()
+        print("we are now in calculate weighted average")   
+        weights = weights.mean(axis=0)    
+        spatial_weighted_sum = np.nansum(weights * temporal_mean)
+        total_weight = np.nansum(weights)
+        value  = spatial_weighted_sum / total_weight if total_weight != 0 else np.nan
         self.weighted_averages.append(value)
-
+    
     def calculate_var_variance(self,weights,temporal_mean):
         """
           This method returns the gridcell weighted variance of the requested variables using
@@ -95,7 +98,7 @@ class VarStatsCatalog :
            temporal_mean:the temporal means array that is calculated in
                          the calling function. 
           """
-    
+        weights = weights.mean(axis=0)   
         # Ensure the weights and temporal_mean have compatible shapes
         try:
             assert weights.shape == temporal_mean.shape

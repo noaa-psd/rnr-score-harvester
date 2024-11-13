@@ -39,7 +39,14 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean', 'variance', 'minimum', 'maximum'],
-                     'variable': ['prate_ave']}
+                     'variable': ['prate_ave'],
+                     'regions': {'conus':{'north_lat': 49, 'south_lat': 24, 'west_long': 235, 'east_long':293},
+                                 'south_hemis': {'north_lat':0, 'south_lat':-90, 'west_long':0, 'east_long':360},
+                                 'north_hemis': {'north_lat':90, 'south_lat':0, 'west_long':0, 'east_long':360},
+                                 'tropics': {'north_lat': 24.0, 'south_lat': -24.0, 'west_long': 0.0, 'east_long': 360.0},
+                                 'global': { }
+                                }
+                     }           
 
 def test_gridcell_area_conservation(tolerance=0.001):
 
@@ -58,111 +65,56 @@ def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'prate_ave'
 
-def test_global_mean_values_netCDF4(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the expected value
-    of the provided variable.  In this case prateb_ave.
+def test_mean_values(tolerance=0.001):
     """
+      The values of the calculated_means list were
+      calculated from these eight forecast files:
+
+        bfg_1994010100_fhr09_prateb_control.nc
+        bfg_1994010106_fhr06_prateb_control.nc
+        bfg_1994010106_fhr09_prateb_control.nc
+        bfg_1994010112_fhr06_prateb_control.nc
+        bfg_1994010112_fhr09_prateb_control.nc
+        bfg_1994010118_fhr06_prateb_control.nc
+        bfg_1994010118_fhr09_prateb_control.nc
+        bfg_1994010200_fhr06_prateb_control.nc
+
+      When averaged together, these files represent a 24 hour mean.
+      In this test there are four regions.  The daily_bfg harvester will return
+      the values of all three regions at once.  
+      """
     data1 = harvest(VALID_CONFIG_DICT)
-    
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
-    
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    global_mean = np.ma.sum(norm_weights * temporal_mean)    
-    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'mean':
-            assert global_mean <= (1 + tolerance) * harvested_tuple.value
-            assert global_mean >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
+    for item in data1:
+        if item.statistic == 'mean':
+           calculated_means = [0.03251096850286386,0.03876764799618554,0.043024001372664884,0.060860878009092546,0.0408958246844251]
+           for index in range(len(calculated_means)):
+               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_means[index] >= (1 - tolerance) * item.value[index]
+
                 
 def test_gridcell_variance(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the variance
-    of the provided variable.  In this case prateb_ave.
-    """
     data1 = harvest(VALID_CONFIG_DICT)
-    
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
-    
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    
-    global_mean = np.ma.sum(norm_weights * temporal_mean)
-    variance = np.ma.sum((temporal_mean - global_mean)**2 * norm_weights)
-    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'variance':
-            assert variance <= (1 + tolerance) * harvested_tuple.value
-            assert variance >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
-    
+    for item in data1:
+        if item.statistic == 'variance':
+           calculated_variances = [0.000430468651630288,0.00108603948347438,0.0016457705882051094,0.002221834374899518,0.0013704341718561103]
+           for index in range(len(calculated_variances)):
+               assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
+ 
+
 def test_gridcell_min_max(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the maximum
-    of the provided variable.  In this case prateb_ave.
-    """
     data1 = harvest(VALID_CONFIG_DICT)
-    
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    minimum = np.ma.min(temporal_mean)
-    maximum = np.ma.max(temporal_mean)
-    
-    """The following offline min and max were calculated from an external 
-    python code
-    """
-    
-    offline_min = 4.032677e-11
-    offline_max = 0.5433929
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'maximum':
-            print(harvested_tuple.value)
-            assert maximum <= (1 + tolerance) * harvested_tuple.value
-            assert maximum >= (1 - tolerance) * harvested_tuple.value
-            
-            assert offline_max <= (1 + tolerance) * harvested_tuple.value
-            assert offline_max >= (1 - tolerance) * harvested_tuple.value
-            
-            
-        elif harvested_tuple.statistic == 'minimum':
-            assert minimum <= (1 + tolerance) * harvested_tuple.value
-            assert minimum >= (1 - tolerance) * harvested_tuple.value
-            
-            assert offline_min <= (1 + tolerance) * harvested_tuple.value
-            assert offline_min >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
+    for item in data1:
+        if item.statistic == 'minimum':
+           calculated_min  = [0.0015120203606784344,1.5071715324666002e-06,4.0326767099252425e-11,4.032676709925242e-11,4.032676709925242e-11]
+           for index in range(len(calculated_min)):
+               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
+        if item.statistic == 'maximum':
+           calculated_max = [0.10341465473175052,0.2618738580495119,0.543392937630415,0.543392937630415,0.5433929376304149]
+           for index in range(len(calculated_max)):
+               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
+               assert calculated_max[index] >= (1 - tolerance) * item.value[index]
 
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
@@ -196,7 +148,7 @@ def main():
     test_precip_harvester()
     test_variable_names()
     test_units()
-    test_global_mean_values_netCDF4()
+    test_mean_values()
     test_gridcell_variance()
     test_gridcell_min_max()
     test_cycletime() 

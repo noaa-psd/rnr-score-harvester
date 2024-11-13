@@ -210,33 +210,20 @@ class GeoRegionsCatalog:
          
         # Check dimensions of the specific variable in the dataset
         var_dims = data.dims
-        if 'time' in var_dims:
-            if long2_start_index != -999:
-               region1_data = data.isel(time=slice(None),
-                                                   grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(long1_start_index, long1_end_index))
+        if long2_start_index != -999:
+           region1_data = data.isel(time=slice(None),
+                                    grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                    grid_xt=slice(long1_start_index, long1_end_index))
 
-               region2_data = data.isel(time=slice(None),
-                                                   grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(long2_start_index, long2_end_index))
-               region_data = xr.concat([region1_data,region2_data],dim='grid_xt')
+           region2_data = data.isel(time=slice(None),
+                                     grid_yt=slice(lat_start_index, lat_end_index + 1),
+                                     grid_xt=slice(long2_start_index, long2_end_index))
+           region_data = xr.concat([region1_data,region2_data],dim='grid_xt')
                
-            else:
-               region_data = data.isel(time=slice(None),
-                                                   grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(long1_start_index, long1_end_index))                
         else:
-            if long2_start_index != -999:
-               region1_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(long1_start_index,long1_end_index)) 
-
-               region2_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(long2_start_index,long2_end_index)) 
-           
-               region_data = xr.concat([region1_data,region2_data],dim='grid_xt')
-            else:
-               region_data = data.isel(grid_yt=slice(lat_start_index, lat_end_index + 1),
-                                                   grid_xt=slice(long1_start_index,long1_end_index))        
+           region_data = data.isel(time=slice(None),
+                         grid_yt=slice(lat_start_index, lat_end_index + 1),
+                         grid_xt=slice(long1_start_index, long1_end_index))                
         return(region_data)
 
          

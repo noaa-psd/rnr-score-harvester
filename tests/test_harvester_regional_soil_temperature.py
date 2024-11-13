@@ -44,6 +44,7 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                                'south_meni': {'north_lat': 0.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0},
                                'eastern_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 180.0},
                                'western_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 180.0, 'east_long': 360.0},
+                               'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0},
                                }
 
                      }
@@ -89,12 +90,12 @@ def test_global_mean_values(tolerance=0.001):
 
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'mean':
-           calculated_means = [112.60353787828686, 42.149624950145956,101.11860562851737, 53.63455719991545]
+           calculated_means = [283.39312230347826,298.0164576940641,287.4417380555854,286.83712118855755,287.231900730573]
            for index in range(len(calculated_means)):
                assert calculated_means[index] <= (1 + tolerance) * item.value[index]
                assert calculated_means[index] >= (1 - tolerance) * item.value[index]
         elif item.variable == 'tg3' and item.statistic == 'mean':
-           calculated_means = [113.15909397838503, 41.659809616478945,101.13745915934136, 53.681444435522614]
+           calculated_means = [284.79130915122187,294.553246977907,287.49533152594,287.08787370517393,287.3539198918497]
            for index in range(len(calculated_means)):
                assert calculated_means[index] <= (1 + tolerance) * item.value[index]
                assert calculated_means[index] >= (1 - tolerance) * item.value[index]
@@ -108,12 +109,12 @@ def test_gridcell_variance(tolerance=0.001):
      
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'variance':
-          calculated_variances = [11653.339922043157, 9262.338575055992, 12271.96061131527, 10198.287477989317]
+          calculated_variances = [159.27152912176592,20.987013339986156,168.20701798859776,156.91227453651263,164.3699225807664]
           for index in range(len(calculated_variances)):
               assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
               assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
         elif item.variable == 'tg3' and item.statistic == 'variance':
-          calculated_variances = [11768.367926290819, 9047.996504014442, 12266.536131610563, 10213.705627241196]
+          calculated_variances = [160.23127318696643,18.239349630567105,139.84038834454338,144.2430235934427,141.40598164295744]
           for index in range(len(calculated_variances)):
               assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
               assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
@@ -123,25 +124,25 @@ def test_gridcell_min_max(tolerance=0.001):
      
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'minimum':
-           calculated_min  = [240.58295, 272.74335, 242.01396, 240.58295]
+           calculated_min  = [240.5829497518155,272.7433567678382,242.01396420200825,240.5829497518155,240.5829497518155]
            for index in range(len(calculated_min)):
                assert calculated_min[index] <= (1 + tolerance) * item.value[index]
                assert calculated_min[index] >= (1 - tolerance) * item.value[index]
 
         elif item.variable == 'soilt4' and item.statistic == 'maximum':
-           calculated_max = [308.44702, 308.445, 308.44702, 307.2143]
+           calculated_max = [308.44702529907227,308.444991167564,308.44702529907227,307.2143072168101,308.44702529907227]
            for index in range(len(calculated_max)):
                assert calculated_max[index] <= (1 + tolerance) * item.value[index]
                assert calculated_max[index] >= (1 - tolerance) * item.value[index]
 
         elif item.variable == 'tg3' and item.statistic == 'minimum':
-           calculated_min = [250.65329, 273.11252, 257.85712, 250.65329]
+           calculated_min = [250.65328979492188,273.11251509181625,257.85712288382484,250.65328979492188,250.65328979492188]
            for index in range(len(calculated_min)):
                assert calculated_min[index] <= (1 + tolerance) * item.value[index]
                assert calculated_min[index] >= (1 - tolerance) * item.value[index]
 
         elif item.variable == 'tg3' and item.statistic == 'maximum':
-           calculated_max = [302.39206, 301.11945, 302.39206, 302.35144] 
+           calculated_max = [302.3920593261719,301.1194466437604,302.3920593261719,302.3514404296875,302.3920593261719] 
            for index in range(len(calculated_max)):
                assert calculated_max[index] <= (1 + tolerance) * item.value[index]
                assert calculated_max[index] >= (1 - tolerance) * item.value[index]               
