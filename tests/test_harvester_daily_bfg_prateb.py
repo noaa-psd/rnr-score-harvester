@@ -39,7 +39,7 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean', 'variance', 'minimum', 'maximum'],
-                     'variable': ['prateb_ave']}
+                     'variable': ['prate_ave']}
 
 def test_gridcell_area_conservation(tolerance=0.001):
 
@@ -56,29 +56,7 @@ def test_gridcell_area_conservation(tolerance=0.001):
 
 def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].variable == 'prateb_ave'
-
-def test_global_mean_values_offline(tolerance=0.001):
-    """The value of 3.117e-05 is the mean value of the global means 
-    calculated from eight forecast files:
-        
-        bfg_1994010100_fhr09_prateb_control.nc
-        bfg_1994010106_fhr06_prateb_control.nc
-        bfg_1994010106_fhr09_prateb_control.nc
-        bfg_1994010112_fhr06_prateb_control.nc
-        bfg_1994010112_fhr09_prateb_control.nc
-        bfg_1994010118_fhr06_prateb_control.nc
-        bfg_1994010118_fhr09_prateb_control.nc
-        bfg_1994010200_fhr06_prateb_control.nc
-        
-    When averaged together, these files represent a 24 hour mean. The 
-    average value hard-coded in this test was calculated from 
-    these forecast files using a separate python code.
-    """
-    data1 = harvest(VALID_CONFIG_DICT)
-    global_mean = 3.1173840683271906e-05
-    assert data1[0].value <= (1 + tolerance) * global_mean
-    assert data1[0].value >= (1 - tolerance) * global_mean
+    assert data1[0].variable == 'prate_ave'
 
 def test_global_mean_values_netCDF4(tolerance=0.001):
     """Opens each background Netcdf file using the
@@ -164,10 +142,12 @@ def test_gridcell_min_max(tolerance=0.001):
     """The following offline min and max were calculated from an external 
     python code
     """
-    offline_min = 0.0
-    offline_max = 0.0043600933
+    
+    offline_min = 4.032677e-11
+    offline_max = 0.5433929
     for i, harvested_tuple in enumerate(data1):
         if harvested_tuple.statistic == 'maximum':
+            print(harvested_tuple.value)
             assert maximum <= (1 + tolerance) * harvested_tuple.value
             assert maximum >= (1 - tolerance) * harvested_tuple.value
             
@@ -202,7 +182,7 @@ def test_cycletime():
 
 def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)
-    var_longname = "bucket surface precipitation rate"
+    var_longname = "surface precipitation rate"
     assert data1[0].longname == var_longname
 
 def test_precip_harvester():
@@ -216,7 +196,6 @@ def main():
     test_precip_harvester()
     test_variable_names()
     test_units()
-    test_global_mean_values_offline()
     test_global_mean_values_netCDF4()
     test_gridcell_variance()
     test_gridcell_min_max()

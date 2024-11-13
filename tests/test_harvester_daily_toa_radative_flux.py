@@ -101,7 +101,7 @@ def test_cycletime():
 
 def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)
-    assert data1[0].longname == "Top of atmosphere net radiative energy flux"
+    assert data1[0].longname == "Top of atmosphere net radiative flux"
 
 def test_global_mean_values(tolerance=0.001):
     """The value of 10.022175263719816 is the mean value of the global means
