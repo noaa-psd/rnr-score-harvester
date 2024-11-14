@@ -111,7 +111,6 @@ def calculate_temporal_mean(masked_variable,fraction_data,variable_data,normaliz
       return: The temporal mean of the region_variable_data as calculated from 
       """
     if masked_variable:  
-       print("here in masked variable calculate temporal mean")
        weighted_data_sum = ( fraction_data * variable_data * normalized_weights).sum(dim='time', skipna=True)
        normalized_weights_sum = ( fraction_data * normalized_weights).sum(dim='time',skipna=True)
        normalized_weights_sum = normalized_weights_sum.where(normalized_weights_sum != 0, np.nan)
@@ -121,7 +120,6 @@ def calculate_temporal_mean(masked_variable,fraction_data,variable_data,normaliz
          variable is not in the special variable list.  This is because the land fraction
          data has 0 over the ocean.
          """
-       print("in the else")  
        weighted_data_sum = ( variable_data * normalized_weights).sum(dim='time', skipna=True)
        normalized_weights_sum = normalized_weights.sum(dim='time',skipna=True)
 
@@ -302,7 +300,6 @@ class DailyBFGHv(object):
                 soil_type_data = global_soil_type_data.sel(grid_yt=region_lat, grid_xt=region_lon) 
                 initial_mask_variable = mask_instance.check_variable_to_mask(var_name)
                 if initial_mask_variable:
-                   print("going into mask")
                    is_masked = True
                    masked_variable,masked_fraction,masked_weights = \
                           mask_instance.initial_mask_variable(var_name,variable_data,fraction_data, \
@@ -313,16 +310,8 @@ class DailyBFGHv(object):
                    value = calculate_temporal_mean(is_masked,masked_fraction,masked_variable,masked_weights)
                    temporal_means.append(value)
                    var_stats_catalog.calculate_requested_statistics(masked_weights,value)
-                   cregion = str(iregion)
-                   temporal_means.append(value)
-                   filename = var_name+"_"+cregion+"_mask.nc"
-                   value.name = 'temporal_mean'
-                   value.to_netcdf(filename)
-                   masked_weights.name = "weights"
-                   masked_weights.to_netcdf(filename,mode='a')
 
                 elif self.config.surface_mask != None:
-                   print("we have a user mask")
                    is_masked = True
                    mask_instance.check_surface_mask(self.config.surface_mask)
                    for mask in self.config.surface_mask:
@@ -331,33 +320,15 @@ class DailyBFGHv(object):
                        weight_sum = masked_weights.sum(dim=['grid_yt', 'grid_xt'], skipna=True)
                        normalized_weights = xr.where(weight_sum != 0, masked_weights / weight_sum, np.nan)
                        value = calculate_temporal_mean(is_masked,masked_fraction,masked_variable,masked_weights)
-                       cregion = str(iregion)
                        temporal_means.append(value)
-                       filename = var_name+"_"+cregion+"_"+mask+".nc"
-                       value.name = 'temporal_mean'
-                       value.to_netcdf(filename)
-                       masked_weights.name = 'weights'
-                       masked_weights.to_netcdf(filename,mode='a')
-                       masked_variable.name = ('masked_variable')
-                       masked_variable.to_netcdf('masked_variable.nc')
-                       masked_fraction.name=('masked_fraction')
-                       masked_fraction.to_netcdf('masked_fraction.nc')
                        var_stats_catalog.calculate_requested_statistics(masked_weights,value)
                 else:
-                   print("no mask") 
                    is_masked = False
                    mask = 'None'
                    weight_sum = weights.sum(dim=['grid_yt', 'grid_xt'], skipna=True)
                    normalized_weights = xr.where(weight_sum!=0,weights/weight_sum,np.nan)
                    value = calculate_temporal_mean(is_masked,fraction_data,variable_data,normalized_weights)
                    temporal_means.append(value)
-                               
-                   cregion = str(iregion)
-                   filename = var_name+"_"+cregion+"_"+mask+".nc"
-                   value.name = 'temporal_mean'
-                   value.to_netcdf(filename)
-                   weights.name = 'weights'
-                   weights.to_netcdf(filename,mode='a')
                    var_stats_catalog.calculate_requested_statistics(weights,value)
 
             for j, statistic in enumerate(self.config.get_stats()):
