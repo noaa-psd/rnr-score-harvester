@@ -13,7 +13,7 @@ from netCDF4 import Dataset
 from score_hv import hv_registry
 from score_hv.harvester_base import harvest
 from score_hv.yaml_utils import YamlLoader
-from score_hv.harvesters.innov_netcdf import Region, InnovStatsCfg
+from score_hv.region_utils import GeoRegionsCatalog 
 
 TEST_DATA_FILE_NAMES = ['bfg_1994010100_fhr09_prateb_control.nc',
                         'bfg_1994010106_fhr06_prateb_control.nc',
@@ -39,28 +39,34 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean', 'variance', 'minimum', 'maximum'],
-                     'variable': ['prateb_ave']}
+                     'variable': ['prateb_ave'],
+                     'regions':  {
+                                 'conus': {'north_lat': 49, 'south_lat': 24, 'west_long': 235.0, 'east_long': 294.0},
+                                 'date_line': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 50.0, 'east_long': 355.0},
+                                 'eastern_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 180.0},
+                                 'western_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 180.0, 'east_long': 360.0},
+                                 'prime_meridian': {'north_lat': 90.0, 'south_lat': -90.0,'west_long': 270.0, 'east_long': 30.0},
+                                 'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0, 'east_long': 360 },
+                                 'tropical': {'north_lat': 5, 'south_lat': -5, 'west_long': 0, 'east_long': 360.0},
+                                }
+
+                     }
 
 def test_gridcell_area_conservation(tolerance=0.001):
-
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    
     assert gridcell_area_data['area'].units == 'steradian'
-    
     sum_gridcell_area = np.sum(gridcell_area_data.variables['area'])
-    
     assert sum_gridcell_area < (1 + tolerance) * 4 * np.pi
     assert sum_gridcell_area > (1 - tolerance) * 4 * np.pi
-    
     gridcell_area_data.close()
 
 def test_variable_names():
     data1 = harvest(VALID_CONFIG_DICT)
     assert data1[0].variable == 'prateb_ave'
 
-def test_global_mean_values_offline(tolerance=0.001):
-    """The value of 3.117e-05 is the mean value of the global means 
-    calculated from eight forecast files:
+def test_global_mean_values(tolerance=0.001):
+    """The mean values are calculated from these 
+       eight forecast files:
         
         bfg_1994010100_fhr09_prateb_control.nc
         bfg_1994010106_fhr06_prateb_control.nc
@@ -72,117 +78,75 @@ def test_global_mean_values_offline(tolerance=0.001):
         bfg_1994010200_fhr06_prateb_control.nc
         
     When averaged together, these files represent a 24 hour mean. The 
-    average value hard-coded in this test was calculated from 
+    average values hard-coded in this test were calculated from 
     these forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
-    global_mean = 3.1173840683271906e-05
-    assert data1[0].value <= (1 + tolerance) * global_mean
-    assert data1[0].value >= (1 - tolerance) * global_mean
+    """ 
+      If the word region is in data1 returned by the harvester then has_region will be True.
+      """
+    for harvested_data in data1[0]: 
+        has_region = any(hasattr(data, 'regions') for data in data1) #Returns a boolean.
+        if has_region:
+           global_means = [2.8757226299207095e-05, 3.275308514564545e-05, 3.225420289425872e-05, \
+                           3.0093478472285123e-05, 3.25835162239216e-05, 3.117384068327193e-05, \
+                           7.04825819962097e-05]
+            
+           for i, harvested_tuple in enumerate(data1):
+               if harvested_tuple.statistic == 'mean':
+                  num_values = len(harvested_tuple.value)
+                  for inum in range(num_values):
+                      assert global_means[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                      assert global_means[inum] >= (1 - tolerance) * harvested_tuple.value[inum]
 
-def test_global_mean_values_netCDF4(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the expected value
-    of the provided variable.  In this case prateb_ave.
-    """
+def test_variance_values(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
-    
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    global_mean = np.ma.sum(norm_weights * temporal_mean)    
-    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'mean':
-            assert global_mean <= (1 + tolerance) * harvested_tuple.value
-            assert global_mean >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
-                
-def test_gridcell_variance(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the variance
-    of the provided variable.  In this case prateb_ave.
-    """
+    for harvested_data in data1[0]:  
+        has_region = any(hasattr(data, 'regions') for data in data1) #Returns a boolean.
+        if has_region:
+           variances = [4.404340892598467e-09, 6.321334139899629e-09, 6.012355081136634e-09, \
+                        5.4622850553750265e-09, 6.268698538596581e-09, 5.738487271970866e-09, \
+                        1.482636074512706e-08] 
+           for i, harvested_tuple in enumerate(data1):
+                if harvested_tuple.statistic == 'variance':
+                   num_values = len(harvested_tuple.value)
+                   for inum in range(num_values):
+                       assert variances[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                       assert variances[inum] >= (1 - tolerance) * harvested_tuple.value[inum]
+      
+def test_gridcell_min(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    norm_weights = gridcell_area_data.variables['area'][:] / np.sum(
-                                        gridcell_area_data.variables['area'][:])
-    
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    
-    global_mean = np.ma.sum(norm_weights * temporal_mean)
-    variance = np.ma.sum((temporal_mean - global_mean)**2 * norm_weights)
-    
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'variance':
-            assert variance <= (1 + tolerance) * harvested_tuple.value
-            assert variance >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
-    
-def test_gridcell_min_max(tolerance=0.001):
-    """Opens each background Netcdf file using the
-    netCDF4 library function Dataset and computes the maximum
-    of the provided variable.  In this case prateb_ave.
-    """
+     
+    """ 
+      If the word region is in data1 returned by the harvester then has_region will be True.
+      """
+    for harvested_data in data1[0]:  
+        has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
+        if has_region:
+           min_values = [ 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+           for i, harvested_tuple in enumerate(data1):
+                if harvested_tuple.statistic == 'minimum':
+                   num_values = len(harvested_tuple.value)
+                   for inum in range(num_values):
+                       assert min_values[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                       assert min_values[inum] >= (1 - tolerance) * harvested_tuple.value[inum]
+ 
+def test_gridcell_max(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
-    gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
-    
-    summation = np.ma.zeros(gridcell_area_data.variables['area'].shape)
-    for file_count, data_file in enumerate(BFG_PATH):
-        test_rootgrp = Dataset(data_file)
-    
-        summation += test_rootgrp.variables[VALID_CONFIG_DICT['variable'][0]][0]
-        
-        test_rootgrp.close()
-        
-    temporal_mean = summation / (file_count + 1)
-    minimum = np.ma.min(temporal_mean)
-    maximum = np.ma.max(temporal_mean)
-    
-    """The following offline min and max were calculated from an external 
-    python code
-    """
-    offline_min = 0.0
-    offline_max = 0.0043600933
-    for i, harvested_tuple in enumerate(data1):
-        if harvested_tuple.statistic == 'maximum':
-            assert maximum <= (1 + tolerance) * harvested_tuple.value
-            assert maximum >= (1 - tolerance) * harvested_tuple.value
-            
-            assert offline_max <= (1 + tolerance) * harvested_tuple.value
-            assert offline_max >= (1 - tolerance) * harvested_tuple.value
-            
-            
-        elif harvested_tuple.statistic == 'minimum':
-            assert minimum <= (1 + tolerance) * harvested_tuple.value
-            assert minimum >= (1 - tolerance) * harvested_tuple.value
-            
-            assert offline_min <= (1 + tolerance) * harvested_tuple.value
-            assert offline_min >= (1 - tolerance) * harvested_tuple.value
-            
-    gridcell_area_data.close()
+     
+    for harvested_data in data1[0]:  
+        has_region = any(hasattr(data, 'region') for data in data1) #Returns a boolean.
+        if has_region:
+           max_values = [0.00071415555, 0.0043600933, 0.0043600933, \
+                         0.0032889172, 0.0043600933, 0.0043600933, \
+                         0.0032889172] 
+ 
+           for i, harvested_tuple in enumerate(data1):
+               if harvested_tuple.statistic == 'maximum':
+                  num_values = len(harvested_tuple.value)
+                  for inum in range(num_values):
+                      assert max_values[inum] <= (1 + tolerance) * harvested_tuple.value[inum]
+                      assert max_values[inum] >= (1 - tolerance) * harvested_tuple.value[inum]
 
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
@@ -206,7 +170,7 @@ def test_longname():
     assert data1[0].longname == var_longname
 
 def test_precip_harvester():
-    data1 = harvest(VALID_CONFIG_DICT)  
+    data1 = harvest(VALID_CONFIG_DICT) 
     assert type(data1) is list
     assert len(data1) > 0
     assert data1[0].filenames==BFG_PATH
@@ -216,10 +180,10 @@ def main():
     test_precip_harvester()
     test_variable_names()
     test_units()
-    test_global_mean_values_offline()
-    test_global_mean_values_netCDF4()
-    test_gridcell_variance()
-    test_gridcell_min_max()
+    test_global_mean_values()
+    test_variance_values()
+    test_gridcell_min()
+    test_gridcell_max()
     test_cycletime() 
     test_longname()
 

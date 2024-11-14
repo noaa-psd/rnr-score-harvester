@@ -36,8 +36,8 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean','variance', 'minimum', 'maximum'],
-                     'variable': ['ulwrf_avetoa']}
-
+                     'variable': ['ulwrf_avetoa'],
+                    }            
 def test_gridcell_area_conservation(tolerance=0.001):
 
     gridcell_area_data = Dataset(GRIDCELL_AREA_DATA_PATH)
