@@ -1,0 +1,17 @@
+#!/bin/csh
+
+cdo merge  bfg_1994010100_fhr09_toa_radiative_flux_control.nc bfg_1994010100_fhr09_fluxes_control.nc out.nc
+mv out.nc bfg_2023032100_fhr09_fluxes_control.nc
+
+ 
+exit
+
+mv modified_bfg_1994010100_fhr09_snowice_control.nc   bfg_1994010100_fhr09_soil_control.nc
+mv modified_bfg_1994010106_fhr06_snowice_control.nc   bfg_1994010106_fhr06_soil_control.nc
+mv modified_bfg_1994010106_fhr09_snowice_control.nc   bfg_1994010106_fhr09_soil_control.nc
+mv modified_bfg_1994010112_fhr06_snowice_control.nc   bfg_1994010112_fhr06_soil_control.nc
+mv modified_bfg_1994010112_fhr09_snowice_control.nc   bfg_1994010112_fhr09_soil_control.nc
+mv modified_bfg_1994010118_fhr06_snowice_control.nc   bfg_1994010118_fhr06_soil_control.nc
+mv modified_bfg_1994010118_fhr09_snowice_control.nc   bfg_1994010118_fhr09_soil_control.nc
+mv modified_bfg_1994010200_fhr06_snowice_control.nc   bfg_1994010200_fhr06_soil_control.nc
+

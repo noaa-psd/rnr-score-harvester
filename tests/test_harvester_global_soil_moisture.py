@@ -38,7 +38,7 @@ BFG_PATH = [os.path.join(TEST_DATA_PATH,
 VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'filenames' : BFG_PATH,
                      'statistic': ['mean','variance', 'minimum', 'maximum'],
-                     'variable': ['soill4','soilm'],
+                     'variable': ['soilm'],
                      }
 
 def test_gridcell_area_conservation(tolerance=0.001):
@@ -51,11 +51,8 @@ def test_gridcell_area_conservation(tolerance=0.001):
     gridcell_area_data.close()
 
 def test_variable_names():
-    """Here we are testing two variables.  The daily_bfg harvester
-       should return values for both variables at once.
-       """
-    expected_variables = ['soill4', 'soilm'] 
-    assert VALID_CONFIG_DICT['variable'] == expected_variables
+    #The daily_bfg harvester should return 'soilm'.
+    assert 'soilm' in VALID_CONFIG_DICT['variable'] 
 
 def test_global_mean_values(tolerance=0.001):
     """ 
@@ -73,72 +70,49 @@ def test_global_mean_values(tolerance=0.001):
         
         When averaged together, these files represent a 24 hour mean. The 
         average values hard-coded in this test was calculated from 
-        forecast files using a separate python code.
+        forecast files using a separate python code.  
+
+        In this test there are four regions.  The daily_bfg harvester will return
+        the values of all four regions at once.  
     """
     data1 = harvest(VALID_CONFIG_DICT)
-
     for item in data1:
-        if item.variable == 'soill4' and item.statistic == 'mean':
-           calculated_means = [0.0782377246355602]
+        if item.statistic == 'mean':
+           calculated_means = 590.3986859856061
            assert calculated_means <= (1 + tolerance) * item.value
            assert calculated_means >= (1 - tolerance) * item.value
-        elif item.variable == 'soilm' and item.statistic == 'mean':
-           calculated_means = 159.0458158728542 
-           assert calculated_means <= (1 + tolerance) * item.value
-           assert calculated_means >= (1 - tolerance) * item.value
-
+ 
 def test_gridcell_variance(tolerance=0.001):
     """
       The values of the calculated_variances list were calculated
       from the forecast files listed above in a separate python script.
       """
     data1 = harvest(VALID_CONFIG_DICT)
-   
     for item in data1:
-        if item.variable == 'soill4' and item.statistic == 'variance':
-          calculated_variances = 0.014143652677176984 
-          assert calculated_variances <= (1 + tolerance) * item.value
-          assert calculated_variances >= (1 - tolerance) * item.value
-        elif item.variable == 'soilm' and item.statistic == 'variance':
-          calculated_variances = 54875.85889320354 
+        if item.statistic == 'variance':
+          calculated_variances = 17641.003256653723
           assert calculated_variances <= (1 + tolerance) * item.value
           assert calculated_variances >= (1 - tolerance) * item.value
   
 def test_gridcell_min_max(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
+     
     for item in data1:
-        if item.variable == 'soill4' and item.statistic == 'minimum':
-           calculated_min  = 1e-05 
+        if item.statistic == 'minimum':
+           calculated_min = 89.12118895217337 
            assert calculated_min <= (1 + tolerance) * item.value
            assert calculated_min >= (1 - tolerance) * item.value
 
-        elif item.variable == 'soill4' and item.statistic == 'maximum':
-           calculated_max = 0.46713507
-           assert calculated_max <= (1 + tolerance) * item.value
-           assert calculated_max >= (1 - tolerance) * item.value
-
-        elif item.variable == 'soilm' and item.statistic == 'minimum':
-           calculated_min = 89.12119 
-           assert calculated_min <= (1 + tolerance) * item.value
-           assert calculated_min >= (1 - tolerance) * item.value
-
-        elif item.variable == 'soilm' and item.statistic == 'maximum':
-           calculated_max =  922.9723
+        elif item.statistic == 'maximum':
+           calculated_max = 922.972348182115
            assert calculated_max <= (1 + tolerance) * item.value
            assert calculated_max >= (1 - tolerance) * item.value               
     
 def test_units():
-    variable_dictionary = {}
     data1 = harvest(VALID_CONFIG_DICT)
 
     for item in data1:
-        if item.variable == 'soill4':
-           expected_units = 'xxx'
-           assert expected_units == item.units 
-        elif item.variable == 'soilm':
-           expected_units = 'kg/m**2'
-           assert expected_units == item.units 
+        assert 'kg/m**2' == item.units 
 
 def test_cycletime():
     """ The hard coded datetimestr 1994-01-01 12:00:00
@@ -156,14 +130,10 @@ def test_longname():
     data1 = harvest(VALID_CONFIG_DICT)
 
     for item in data1:
-        if item.variable == 'soilt4':
-           expected_longname = 'soil temperature unknown layer 4'
-           assert expected_longname == item.longname 
-        elif item.variable == 'tg3':
-           expected_longname = 'deep soil temperature'
-           assert expected_longname == item.longname
+        expected_longname = 'total column soil moisture content'
+        assert expected_longname == item.longname
 
-def test_soil_moisture_level4_harvester():
+def test_soil_moisture_harvester():
     data1 = harvest(VALID_CONFIG_DICT) 
     assert type(data1) is list
     assert len(data1) > 0
@@ -171,7 +141,7 @@ def test_soil_moisture_level4_harvester():
 
 def main():
     test_gridcell_area_conservation()
-    test_soil_moisture_level4_harvester()
+    test_soil_moisture_harvester()
     test_variable_names()
     test_units()
     test_global_mean_values()

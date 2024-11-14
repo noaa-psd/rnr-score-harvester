@@ -74,16 +74,19 @@ def test_global_mean_values(tolerance=0.001):
         When averaged together, these files represent a 24 hour mean. The 
         average values hard-coded in this test was calculated from 
         forecast files using a separate python code.
+
+        In this test there are four regions.  The daily_bfg harvester will return
+        the values of all four regions at once.  
     """
     data1 = harvest(VALID_CONFIG_DICT)
 
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'mean':
-           calculated_means = 77.3765814142164
+           calculated_means = 287.231900730573
            assert calculated_means <= (1 + tolerance) * item.value
            assert calculated_means >= (1 - tolerance) * item.value
         elif item.variable == 'tg3' and item.statistic == 'mean':
-           calculated_means = 77.40945179743201 
+           calculated_means = 287.3539198918497
            assert calculated_means <= (1 + tolerance) * item.value
            assert calculated_means >= (1 - tolerance) * item.value
 
@@ -93,38 +96,38 @@ def test_gridcell_variance(tolerance=0.001):
       from the forecast files listed above in a separate python script.
       """
     data1 = harvest(VALID_CONFIG_DICT)
-   
+     
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'variance':
-          calculated_variances = 11907.888288429804 
+          calculated_variances = 164.3699225807664
           assert calculated_variances <= (1 + tolerance) * item.value
           assert calculated_variances >= (1 - tolerance) * item.value
         elif item.variable == 'tg3' and item.statistic == 'variance':
-          calculated_variances = 11911.783810514964 
+          calculated_variances = 141.40598164295744
           assert calculated_variances <= (1 + tolerance) * item.value
           assert calculated_variances >= (1 - tolerance) * item.value
   
 def test_gridcell_min_max(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
+     
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'minimum':
-           calculated_min  = 240.58295
+           calculated_min  = 240.5829497518155
            assert calculated_min <= (1 + tolerance) * item.value
            assert calculated_min >= (1 - tolerance) * item.value
 
         elif item.variable == 'soilt4' and item.statistic == 'maximum':
-           calculated_max = 308.44702 
+           calculated_max = 308.44702529907227
            assert calculated_max <= (1 + tolerance) * item.value
            assert calculated_max >= (1 - tolerance) * item.value
 
         elif item.variable == 'tg3' and item.statistic == 'minimum':
-           calculated_min = 250.65329 
+           calculated_min = 250.65328979492188
            assert calculated_min <= (1 + tolerance) * item.value
            assert calculated_min >= (1 - tolerance) * item.value
 
         elif item.variable == 'tg3' and item.statistic == 'maximum':
-           calculated_max = 302.39206 
+           calculated_max = 302.3920593261719 
            assert calculated_max <= (1 + tolerance) * item.value
            assert calculated_max >= (1 - tolerance) * item.value               
     
