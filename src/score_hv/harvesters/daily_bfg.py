@@ -338,7 +338,7 @@ class DailyBFGHv(object):
                     """
                 if statistic == 'mean':
                     value = var_stats_catalog.weighted_averages 
-                      
+                                          
                 elif statistic == 'variance':
                     value = var_stats_catalog.variances
                                          
