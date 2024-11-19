@@ -42,7 +42,7 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'variable': ['tmp2m'],
                      'regions': {'global':{'north_lat': 90, 'south_lat': -90, 'west_long': 0, 'east_long':360},
                                 },
-                     'surface_mask': ['ocean'],
+                     'surface_mask': ['water'],
                      }
 
 def test_variable_names():
