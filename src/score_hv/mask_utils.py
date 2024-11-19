@@ -11,7 +11,7 @@ import pytest
 import pdb
 
 VARIABLES_TO_MASK = ['icetk','nsst','snod','soilm','soilt4','sst','tg3','tsnowp','weasd']
-VALID_MASKS = ['none','land','ocean','sea', 'ice']
+VALID_MASKS = ['none','land','water', 'ice']
 
 class MaskCatalog:
     def __init__(self):
@@ -66,7 +66,7 @@ class MaskCatalog:
            """
              We will need the sotyp(soil type) variable from the dataset.
              The values of 0 and 16 in the sotyp variable are used to delete values
-             over ocean and ice. This is used specifically for the 
+             over water and ice. This is used specifically for the 
              soil_snow variables: soilm,soilt4,tg3,snod and weasd. We also need
              the land fraction or the ice fraction variable depending on what
              variable the user has requested.
@@ -89,14 +89,14 @@ class MaskCatalog:
            if var_name == "sst":
               """
                 For the sst(tmpsfc) variable we use the sotyp data and keep the
-                values that are over the ocean. 
+                values that are over the water. 
                 """
               masked_variable = variable_data.where(sotyp_data == 0,False)
               masked_weights = weights.where(sotyp_data == 0,False)
               """
-                This line replaces the lfrac values over the ocean where they are 0 with 1.  Then
+                This line replaces the lfrac values over the water where they are 0 with 1.  Then
                 it subtracts the lfrac values that are between 0 and 1 from 1 to get the fraction
-                of the land that is over the ocean.
+                of the land that is over the water.
                 """
               masked_fraction = xr.where(fraction_data == 0, 1, xr.where(fraction_data == 1, 0, 1 - fraction_data))
            elif var_name == "nsst":
@@ -161,14 +161,14 @@ class MaskCatalog:
             masked_fraction = fraction_data.where((sotyp_data != 0) & (sotyp_data != 16),drop=False)
             masked_weights  = weights.where((sotyp_data != 0) & (sotyp_data != 16),drop=False)
         
-        elif mask_type == 'ocean' or mask_type == 'sea':
-            print("ocean or sea")
+        elif mask_type == 'water':
+            print("water")
             masked_variable = variable_data.where(sotyp_data == 0,False)
             masked_weights = weights.where(sotyp_data == 0,False)
             """
-              This line replaces the lfrac values over the ocean where they are 0 with 1.  Then
+              This line replaces the lfrac values over the water where they are 0 with 1.  Then
               it subtracts the lfrac values that are between 0 and 1 from 1 to get the fraction
-              of the land that is over the ocean.
+              of the land that is over water..
               """
             masked_fraction = xr.where(fraction_data == 0, 1, xr.where(fraction_data == 1, 0, 1 - fraction_data))
 
@@ -188,5 +188,5 @@ class MaskCatalog:
             if mask not in VALID_MASKS:
                print(mask)
                msg = f'The mask: {mask} is not a supported mask. ' \
-                     f'Valid masks are: "none, land, ocean ,sea, ice.'
+                     f'Valid masks are: "none, land, water, ice.'
                raise ValueError(msg)
