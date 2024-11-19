@@ -77,7 +77,6 @@ class VarStatsCatalog :
                          the calling function. This is a NumPy array.
            return: None: The result is appended to self.weighted_averages.              
            """
-        print("we are now in calculate weighted average")   
         weights = weights.mean(axis=0)    
         spatial_weighted_sum = np.nansum(weights * temporal_mean)
         total_weight = np.nansum(weights)
