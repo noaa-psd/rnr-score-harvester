@@ -11,14 +11,14 @@ from datetime import datetime
 
 from score_hv.config_base import ConfigInterface
 
-HARVESTER_NAME = 'gsi_conv_obs'
+HARVESTER_NAME = 'gsi_conventional_obs'
 
 VALID_VARIABLES = (
-    'fit_psfc_data' # fit of surface pressure data (mb)
-    'fit_u_data' # fit of u wind data (m/s),
-    'fit_v_data' # fit of v wind data (m/s),
-    'fit_t_data' # fit of temperature data (K)
-    'fit_q_data' # fit of moisture data (% of qsaturation guess)
+    'fit_psfc_data', # fit of surface pressure data (mb)
+    'fit_u_data', # fit of u wind data (m/s),
+    'fit_v_data', # fit of v wind data (m/s),
+    'fit_t_data', # fit of temperature data (K)
+    'fit_q_data', # fit of moisture data (% of qsaturation guess)
 )
 
 VALID_STATISTICS = (
@@ -32,22 +32,46 @@ VALID_STATISTICS = (
 HarvestedData = namedtuple(
     'HarvestedData',
     ['datetime', # datetime.datetime object (date and a time)
-     'ensemble_member'
+     'ensemble_member',
      'plevs_top', # pressures at the tops of the layers (for multi-level data)
      'plevs_bot', # pressure at the bottoms of the layers (for multi-level data)
+     'plevs_units',
      'variable',
      'statistic',
      'values',
      'units',
      'longname',
      'iteration', # GSI outer loop number
-     'usage' # used (asm), read in but not assimilated (mon) or rejected (rej)
+     'usage', # used (asm), read in but not assimilated (mon) or rejected (rej)
      'type', # prepbufr obs type    
     ]
 )
 
+def get_longname(variable):
+    
+    longnames = {'fit_psfc_data': 'fit of surface pressure data',
+                 'fit_u_data': 'fit of u wind data',
+                 'fit_v_data': 'fit of v wind data',
+                 'fit_t_data': 'fit of temperature data',
+                 'fit_q_data': r'fit of moisture data (% of qsaturation guess)'}
+    
+    return longnames[variable]
+    
+def get_units(statistic, variable):
+    
+    units = {'fit_psfc_data': 'mb',
+             'fit_u_data': 'm/s',
+             'fit_v_data': 'm/s',
+             'fit_t_data': 'K',
+             'fit_q_data': r'%'}
+             
+    if statistic == 'count':
+        units[variable] = None
+    
+    return units[variable]
+
 @dataclass
-class ConvObsConfig(ConfigInterface):
+class GSIConvObsConfig(ConfigInterface):
     
     config_data: dict = field(default_factory=dict)
     
@@ -90,9 +114,9 @@ class ConvObsConfig(ConfigInterface):
                 raise KeyError(msg)
                 
 @dataclass
-class ConvObsHv(object):
+class GSIConvObsHv(object):
     
-    config: ConvObsConfig = field(default_factory = ConvObsConfig)
+    config: GSIConvObsConfig = field(default_factory = GSIConvObsConfig)
     
     def get_data(self):
         """Read the fit file (from the GSI analysis output)"
@@ -126,10 +150,38 @@ class ConvObsHv(object):
             
         self.parse_fit_file()
         
+        harvested_data = list()
+        for var in self.config.vars_to_harvest:
+            
+            longname = get_longname(var)
+            
+            for stat in self.config.stats_to_harvest:
+                
+                units = get_units(stat, var)
+                
+                harvested_data.append(
+                    HarvestedData(
+                        self.datetime,
+                        self.ensemble_member,
+                        list(),
+                        list(),
+                        'GET_PLEV_UNITS',
+                        var,
+                        stat,
+                        self.values,
+                        units,
+                        longname,
+                        'GET_GSI_STAGE',
+                        'GET_USAGE',
+                        'GET_OBS_TYPE'
+                    ))
+        
+        return harvested_data 
+        
     def parse_fit_file(self):
         """ parse lines of fit file and extract statistics
         """
-                
+        self.values = self.lines
                 
 def test(gsistats_test_file):
     test_datetime = datetime.strptime(
