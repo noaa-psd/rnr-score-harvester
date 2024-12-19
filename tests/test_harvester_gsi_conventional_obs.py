@@ -21,10 +21,10 @@ VALID_CONFIG_DICT = {
     'harvester_name': hv_registry.GSI_CONVENTIONAL_OBS,
     'filename': FIT_FILE_PATH,
     'variables': ('fit_psfc_data', # fit of surface pressure data (mb)
-                  'fit_u_data', # fit of u wind data (m/s),
-                  'fit_v_data', # fit of v wind data (m/s),
-                  'fit_t_data', # fit of temperature data (K)
-                  'fit_q_data', # fit of moisture data (% of qsaturation guess)
+                  #'fit_u_data', # fit of u wind data (m/s),
+                  #'fit_v_data', # fit of v wind data (m/s),
+                  #'fit_t_data', # fit of temperature data (K)
+                  #'fit_q_data', # fit of moisture data (% of qsaturation guess)
                   ),
     'statistics': (
         'count', # number of obs summed under obs types and vertical layers
@@ -40,10 +40,10 @@ VALID_CONFIG_DICT_GEOS_IT_1998 = {
     hv_registry.GSI_CONVENTIONAL_OBS,
     'filename': FIT_FILE_PATH_GEOS_IT_1998,
     'variables': ('fit_psfc_data', # fit of surface pressure data (mb)
-                  'fit_u_data', # fit of u wind data (m/s),
-                  'fit_v_data', # fit of v wind data (m/s),
-                  'fit_t_data', # fit of temperature data (K)
-                  'fit_q_data', # fit of moisture data (% of qsaturation guess)
+                  #'fit_u_data', # fit of u wind data (m/s),
+                  #'fit_v_data', # fit of v wind data (m/s),
+                  #'fit_t_data', # fit of temperature data (K)
+                  #'fit_q_data', # fit of moisture data (% of qsaturation guess)
                   ),
     'statistics': (
         'count', # number of obs summed under obs types and vertical layers
@@ -112,20 +112,173 @@ def test_bad_config():
     
     assert exception_caught
  
-def test_run():
+def test_fit_of_surface_pressure_data():
+    data_list = harvest(VALID_CONFIG_DICT)    
+    
+    for i, data_i in enumerate(data_list):
+        if data_i.variable == 'fit_psfc_data':
+            assert data_i.plevs_top == [[0.], [0.]]
+            assert data_i.plevs_bot == [[2000.], [2000.]]
+            assert data_i.plevs_units == ['hPa', 'hPa']
+            
+            if data_i.iteration == 1:
+                if data_i.usage == 'asm':
+                    if data_i.type == '120':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [672]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.224E+00]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.168E+01]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.569E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.500E+00]
+                    elif data_i.type == 'all':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [10716]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.411E+00]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.192E+01]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.827E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.687E+00]
+                elif data_i.usage == 'rej':
+                    if data_i.type == '191':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [14]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.640E+01]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.100E+02]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.000E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.000E+00]
+                    elif data_i.type == 'all':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [551]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [0.559E+02]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.262E+03]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.000E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.000E+00]
+                elif data_i.usage == 'mon':
+                    if data_i.type == '180' and data_i.subtype=='0001':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [25]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.245E+00]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.250E+01]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.122E+01]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.998E+00]
+                    elif data_i.type == 'all':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [123]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.102E+01]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.294E+01]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.736E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.513E+00]
+            elif data_i.iteration == 2:
+                if data_i.usage == 'asm':
+                    if data_i.type == '191':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [38]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.438E+00]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.197E+01]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.173E+01]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.160E+01]
+                    elif data_i.type == 'all':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [10745]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.319E+00]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.173E+01]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.650E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.543E+00]
+                
+                elif data_i.usage == 'rej':
+                    if data_i.type == '180' and data_i.subtype == '0001':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [55]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.555E+01]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.187E+02]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.000E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.000E+00]
+                    elif data_i.type == 'all':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [522]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [0.593E+02]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.269E+03]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.000E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.000E+00]
+                            
+                elif data_i.usage == 'mon':
+                    if data_i.type == '180' and data_i.subtype == '0000':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [2]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [0.634E+00]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.634E+00]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.197E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.197E+00]
+                    elif data_i.type == 'all':
+                        if data_i.statistic == 'count':
+                            assert data_i.values == [123]
+                        elif data_i.statistic == 'bias':
+                            assert data_i.values == [-0.839E+00]
+                        elif data_i.statistic == 'rms':
+                            assert data_i.values == [0.288E+01]
+                        elif data_i.statistic == 'cpen':
+                            assert data_i.values == [0.714E+00]
+                        elif data_i.statistic == 'qcpen':
+                            assert data_i.values == [0.483E+00 ]
+                            
+                                                        
+def run_test():
     import ipdb
     
     data_list = harvest(VALID_CONFIG_DICT)
     for i, data_i in enumerate(data_list):
-        assert data_i.plevs_units == 'GET_PLEV_UNITS'
-        #ipdb.set_trace()
+        ipdb.set_trace()
 
 def run_all():
     test_datetime()
     test_bad_config()
     test_longnames()
     test_units()
-    test_run()
+    test_fit_of_surface_pressure_data()
+    run_test()
     
 def main():
     run_all()
