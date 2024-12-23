@@ -16,6 +16,7 @@ from score_hv.yaml_utils import YamlLoader
 from score_hv.harvesters.ioda_meta_netcdf import IodaMetaCfg
 
 IODA_SST_DATA = 'sst.nesdis.avhrr_l3u_noaa19.20150820.T120000Z.iodav3.nc'
+IODA_SST_N7_DATA = 'nesdis.avhrr_noaa07.sst.19810901.T030000Z.iodav2.so0p25.nc'
 IODA_INSITU_DATA = 'wod.ncei.insitu.20090605.T000000Z.iodav2.nc'
 IODA_INSITU_V3_DATA = 'wod.ncei_insitu.20090605.T000000Z.iodav3.nc'
 PYTEST_CALLING_DIR = Path(__file__).parent.resolve()
@@ -25,6 +26,12 @@ file_path_ioda_sst_data = os.path.join(
     PYTEST_CALLING_DIR,
     DATA_DIR,
     IODA_SST_DATA
+)
+
+file_path_ioda_sst_n7_data = os.path.join(
+    PYTEST_CALLING_DIR,
+    DATA_DIR,
+    IODA_SST_N7_DATA
 )
 
 file_path_ioda_insitu_data = os.path.join(
@@ -42,6 +49,11 @@ file_path_ioda_insitu_v3_data = os.path.join(
 VALID_CONFIG_SST_DICT = {
     'harvester_name': hv_registry.IODA_META_NETCDF, 
     'filename': file_path_ioda_sst_data
+}
+
+VALID_CONFIG_SST_N7_DICT = {
+    'harvester_name': hv_registry.IODA_META_NETCDF, 
+    'filename': file_path_ioda_sst_n7_data
 }
 
 VALID_CONFIG_INSITU_DICT = {
@@ -71,6 +83,27 @@ def test_ioda_sst_meta():
     assert sst_data.has_ObsError == True
     assert sst_data.sensor == "AVHRR_GAC"
     assert sst_data.platform == "NOAA-19"
+    assert sst_data.ioda_layout == "ObsGroup"
+    assert sst_data.processing_level == "L3U"
+    assert sst_data.thinning == 0.95
+    assert sst_data.ioda_version == 'v3'
+
+#Test the ioda SST file from noaa07 is being parsed correctly, value independently verified
+def test_ioda_sst_noaa07_meta():
+    data = harvest(VALID_CONFIG_SST_N7_DICT)
+    sst_data = data[0]
+    assert sst_data.filename == IODA_SST_N7_DATA
+    assert sst_data.file_date_time == '1981-09-01 03:00:00'
+    assert sst_data.num_locs == 28493
+    assert sst_data.min_depth == None
+    assert sst_data.max_depth == None
+    assert sst_data.num_vars == 2
+    assert sst_data.variable_name == 'sea_surface_skin_temperature'
+    assert sst_data.var_count == 28493
+    assert sst_data.has_PreQC == True
+    assert sst_data.has_ObsError == True
+    assert sst_data.sensor == "AVHRR_GAC"
+    assert sst_data.platform == "NOAA-07"
     assert sst_data.ioda_layout == "ObsGroup"
     assert sst_data.processing_level == "L3U"
     assert sst_data.thinning == 0.95
