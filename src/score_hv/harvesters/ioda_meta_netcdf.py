@@ -125,9 +125,14 @@ class IodaMetaHv:
         if 'ObsError' in dataset.groups:
             has_ObsError = True
 
-        #NEED TO FIGURE OUT HOW TO GET NUM LOCS FOR IODA NOAA 07
         if num_locs is None and 'nlocs' in dataset.variables:
-            num_locs = int(dataset.variables['nlocs'][:].item())
+            print(f'dataset variables: {dataset.variables}')
+            num_locs_var = dataset.variables['nlocs'][:]
+            print(f'num_locs_var: {num_locs_var}')
+            if num_locs_var.size == 1:
+                num_locs = len(num_locs_var)
+            else:
+                num_locs = num_locs_var.size
 
         valid_value_counts = {}
         if 'ObsValue' in dataset.groups:
