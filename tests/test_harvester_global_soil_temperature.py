@@ -136,11 +136,11 @@ def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
 
     for item in data1:
-        if item.variable == 'soill4':
-           expected_units = 'xxx'
+        if item.variable == 'soilt4':
+           expected_units = 'K'
            assert expected_units == item.units 
-        elif item.variable == 'soilm':
-           expected_units = 'kg/m**2'
+        elif item.variable == 'tg3':
+           expected_units = 'K'
            assert expected_units == item.units 
 
 def test_cycletime():

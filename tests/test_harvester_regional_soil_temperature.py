@@ -41,7 +41,7 @@ VALID_CONFIG_DICT = {'harvester_name': hv_registry.DAILY_BFG,
                      'variable': ['soilt4','tg3'],
                      'regions': {
                                'north_hemi': {'north_lat': 90.0, 'south_lat': 0.0, 'west_long': 0.0, 'east_long': 360.0},
-                               'south_meni': {'north_lat': 0.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0},
+                               'south_hemi': {'north_lat': 0.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0},
                                'eastern_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 180.0},
                                'western_hemis': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 180.0, 'east_long': 360.0},
                                'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0},
@@ -87,18 +87,22 @@ def test_global_mean_values(tolerance=0.001):
         the values of all four regions at once.  
     """
     data1 = harvest(VALID_CONFIG_DICT)
+    print("data1  ",data1)
 
+    soilt_means = [283.39312230347826,298.0164576940641,287.4417380555854,286.83712118855755,287.231900730573]
+    tg3_means = [284.79130915122187,294.553246977907,287.49533152594,287.08787370517393,287.3539198918497]
+    soilt_index = 0
+    tg3_index = 0
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'mean':
-           calculated_means = [283.39312230347826,298.0164576940641,287.4417380555854,286.83712118855755,287.231900730573]
-           for index in range(len(calculated_means)):
-               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_means[index] >= (1 - tolerance) * item.value[index]
+           assert soilt_means[soilt_index] <= (1 + tolerance) * item.value
+           assert soilt_means[soilt_index] >= (1 - tolerance) * item.value
+           soilt_index = soilt_index + 1
+
         elif item.variable == 'tg3' and item.statistic == 'mean':
-           calculated_means = [284.79130915122187,294.553246977907,287.49533152594,287.08787370517393,287.3539198918497]
-           for index in range(len(calculated_means)):
-               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_means[index] >= (1 - tolerance) * item.value[index]
+           assert tg3_means[tg3_index] <= (1 + tolerance) * item.value
+           assert tg3_means[tg3_index] >= (1 - tolerance) * item.value
+           tg3_index = tg3_index + 1
 
 def test_gridcell_variance(tolerance=0.001):
     """
@@ -106,57 +110,70 @@ def test_gridcell_variance(tolerance=0.001):
       from the forecast files listed above in a separate python script.
       """
     data1 = harvest(VALID_CONFIG_DICT)
-     
+    
+    soilt_variances = [159.27152912176592,20.987013339986156,168.20701798859776,156.91227453651263,164.3699225807664]
+    tg3_variances = [160.23127318696643,18.239349630567105,139.84038834454338,144.2430235934427,141.40598164295744]
+    soilt_index = 0
+    tg3_index = 0
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'variance':
-          calculated_variances = [159.27152912176592,20.987013339986156,168.20701798859776,156.91227453651263,164.3699225807664]
-          for index in range(len(calculated_variances)):
-              assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
-              assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
+           assert soilt_variances[soilt_index] <= (1 + tolerance) * item.value
+           assert soilt_variances[soilt_index] >= (1 - tolerance) * item.value
+           soilt_index = soilt_index + 1
+
         elif item.variable == 'tg3' and item.statistic == 'variance':
-          calculated_variances = [160.23127318696643,18.239349630567105,139.84038834454338,144.2430235934427,141.40598164295744]
-          for index in range(len(calculated_variances)):
-              assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
-              assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
-  
-def test_gridcell_min_max(tolerance=0.001):
+            assert tg3_variances[tg3_index] <= (1 + tolerance) * item.value
+            assert tg3_variances[tg3_index] >= (1 - tolerance) * item.value
+            tg3_index = tg3_index + 1
+
+def test_gridcell_min(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-     
+   
+    soilt_min = [240.5829497518155,272.7433567678382,242.01396420200825,240.5829497518155,240.5829497518155]
+    tg3_min = [250.65328979492188,273.11251509181625,257.85712288382484,250.65328979492188,250.65328979492188]
+    soilt_index = 0
+    tg3_index = 0
+
     for item in data1:
         if item.variable == 'soilt4' and item.statistic == 'minimum':
-           calculated_min  = [240.5829497518155,272.7433567678382,242.01396420200825,240.5829497518155,240.5829497518155]
-           for index in range(len(calculated_min)):
-               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
-
-        elif item.variable == 'soilt4' and item.statistic == 'maximum':
-           calculated_max = [308.44702529907227,308.444991167564,308.44702529907227,307.2143072168101,308.44702529907227]
-           for index in range(len(calculated_max)):
-               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_max[index] >= (1 - tolerance) * item.value[index]
+           assert soilt_min[soilt_index] <= (1 + tolerance) * item.value
+           assert soilt_min[soilt_index] >= (1 - tolerance) * item.value
+           soilt_index = soilt_index + 1
 
         elif item.variable == 'tg3' and item.statistic == 'minimum':
-           calculated_min = [250.65328979492188,273.11251509181625,257.85712288382484,250.65328979492188,250.65328979492188]
-           for index in range(len(calculated_min)):
-               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
+             assert tg3_min[tg3_index] <= (1 + tolerance) * item.value
+             assert tg3_min[tg3_index] >= (1 - tolerance) * item.value
+             tg3_index = tg3_index + 1
+    
+def test_gridcell_max(tolerance=0.001):
+    data1 = harvest(VALID_CONFIG_DICT)
+
+    soilt_max = [308.44702529907227,308.444991167564,308.44702529907227,307.2143072168101,308.44702529907227]
+    tg3_max = [302.3920593261719,301.1194466437604,302.3920593261719,302.3514404296875,302.3920593261719] 
+    soilt_index = 0
+    tg3_index = 0
+
+    for item in data1:
+        if item.variable == 'soilt4' and item.statistic == 'maximum':
+           assert soilt_max[soilt_index] <= (1 + tolerance) * item.value
+           assert soilt_max[soilt_index] >= (1 - tolerance) * item.value
+           soilt_index = soilt_index + 1
 
         elif item.variable == 'tg3' and item.statistic == 'maximum':
-           calculated_max = [302.3920593261719,301.1194466437604,302.3920593261719,302.3514404296875,302.3920593261719] 
-           for index in range(len(calculated_max)):
-               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_max[index] >= (1 - tolerance) * item.value[index]               
-    
+               assert tg3_max[tg3_index] <= (1 + tolerance) * item.value
+               assert tg3_max[tg3_index] >= (1 - tolerance) * item.value     
+               tg3_index = tg3_index + 1
+
 def test_units():
     variable_dictionary = {}
     data1 = harvest(VALID_CONFIG_DICT)
 
     for item in data1:
-        if item.variable == 'soill4':
-           expected_units = 'xxx'
+        if item.variable == 'soilt4':
+           expected_units = 'K'
            assert expected_units == item.units 
-        elif item.variable == 'soilm':
-           expected_units = 'kg/m**2'
+        elif item.variable == 'tg3':
+           expected_units = 'K'
            assert expected_units == item.units 
 
 def test_cycletime():
@@ -195,7 +212,8 @@ def main():
     test_units()
     test_global_mean_values()
     test_gridcell_variance()
-    test_gridcell_min_max()
+    test_gridcell_min()
+    test_gridcell_max()
     test_cycletime() 
     test_longname()
 

@@ -84,37 +84,44 @@ def test_mean_values(tolerance=0.001):
       the values of all three regions at once.  
       """
     data1 = harvest(VALID_CONFIG_DICT)
+    calculated_means = [0.03251096850286386,0.03876764799618554,0.043024001372664884,0.060860878009092546,0.0408958246844251]
+    index = 0
     for item in data1:
         if item.statistic == 'mean':
-           calculated_means = [0.03251096850286386,0.03876764799618554,0.043024001372664884,0.060860878009092546,0.0408958246844251]
-           for index in range(len(calculated_means)):
-               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_means[index] >= (1 - tolerance) * item.value[index]
-
+           print(f"Calculated mean {calculated_means[index]} vs. item mean {item.value}")
+           assert calculated_means[index] <= (1 + tolerance) * item.value
+           assert calculated_means[index] >= (1 - tolerance) * item.value
+           index = index + 1
                 
 def test_gridcell_variance(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
+    calculated_variances = [0.000430468651630288,0.00108603948347438,0.0016457705882051094,0.002221834374899518,0.0013704341718561103]
+    index = 0
     for item in data1:
         if item.statistic == 'variance':
-           calculated_variances = [0.000430468651630288,0.00108603948347438,0.0016457705882051094,0.002221834374899518,0.0013704341718561103]
-           for index in range(len(calculated_variances)):
-               assert calculated_variances[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_variances[index] >= (1 - tolerance) * item.value[index]
- 
+           assert calculated_variances[index] <= (1 + tolerance) * item.value
+           assert calculated_variances[index] >= (1 - tolerance) * item.value
+           index = index + 1 
 
-def test_gridcell_min_max(tolerance=0.001):
+def test_gridcell_min(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
+    calculated_min  = [0.0015120203606784344,1.5071715324666002e-06,4.0326767099252425e-11,4.032676709925242e-11,4.032676709925242e-11]
+    index = 0
     for item in data1:
         if item.statistic == 'minimum':
-           calculated_min  = [0.0015120203606784344,1.5071715324666002e-06,4.0326767099252425e-11,4.032676709925242e-11,4.032676709925242e-11]
-           for index in range(len(calculated_min)):
-               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
-        if item.statistic == 'maximum':
-           calculated_max = [0.10341465473175052,0.2618738580495119,0.543392937630415,0.543392937630415,0.5433929376304149]
-           for index in range(len(calculated_max)):
-               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_max[index] >= (1 - tolerance) * item.value[index]
+           assert calculated_min[index] <= (1 + tolerance) * item.value
+           assert calculated_min[index] >= (1 - tolerance) * item.value
+           index = index + 1
+
+def test_gridcell_max(tolerance=0.001):
+     data1 = harvest(VALID_CONFIG_DICT)      
+     calculated_max = [0.10341465473175052,0.2618738580495119,0.543392937630415,0.543392937630415,0.5433929376304149]
+     index = 0
+     for item in data1:
+         if item.statistic == 'maximum':
+            assert calculated_max[index] <= (1 + tolerance) * item.value
+            assert calculated_max[index] >= (1 - tolerance) * item.value
+            index = index + 1
 
 def test_units():
     data1 = harvest(VALID_CONFIG_DICT)
@@ -150,7 +157,8 @@ def main():
     test_units()
     test_mean_values()
     test_gridcell_variance()
-    test_gridcell_min_max()
+    test_gridcell_min()
+    test_gridcell_max()
     test_cycletime() 
     test_longname()
 

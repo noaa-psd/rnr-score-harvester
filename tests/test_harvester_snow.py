@@ -80,17 +80,21 @@ def test_global_mean_values(tolerance=0.001):
         forecast files using a separate python code.
     """
     data1 = harvest(VALID_CONFIG_DICT)
+
+    snod_means = [0.11504197586536281,0.14035512130825797]
+    weasd_means = [23.782534262971975,30.224421066570706]
+    snod_index = 0;
+    weasd_index = 0
     for item in data1:
         if item.variable == 'snod' and item.statistic == 'mean':
-           calculated_means = [0.11504197586536281,0.14035512130825797]
-           for index in range(len(calculated_means)):
-               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_means[index] >= (1 - tolerance) * item.value[index]                
+           assert snod_means[snod_index] <= (1 + tolerance) * item.value
+           assert snod_means[snod_index] >= (1 - tolerance) * item.value                
+           snod_index = snod_index + 1
+
         elif item.variable == 'weasd' and item.statistic == 'mean':
-           calculated_means = [23.782534262971975,30.224421066570706]
-           for index in range(len(calculated_means)):
-               assert calculated_means[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_means[index] >= (1 - tolerance) * item.value[index]
+             assert weasd_means[weasd_index] <= (1 + tolerance) * item.value
+             assert weasd_means[weasd_index] >= (1 - tolerance) * item.value
+             weasd_index = weasd_index + 1
 
 def test_gridcell_variance(tolerance=0.001):
     """
@@ -98,48 +102,60 @@ def test_gridcell_variance(tolerance=0.001):
       from the forecast files listed above in a separate python script.
       """
     data1 = harvest(VALID_CONFIG_DICT)
-   
+  
+    snod_variance = [0.040404931116929776,0.05529798607847377]
+    weasd_variance = [2273.434235984401,3596.5679406750983] 
+    snod_index = 0
+    weasd_index = 0
+
     for item in data1:
         if item.variable == 'snod' and item.statistic == 'variance':
-          calculated_variance = [0.040404931116929776,0.05529798607847377]
-          for index in range(len(calculated_variance)):
-               assert calculated_variance[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_variance[index] >= (1 - tolerance) * item.value[index]
+           assert snod_variance[snod_index] <= (1 + tolerance) * item.value
+           assert snod_variance[snod_index] >= (1 - tolerance) * item.value
+           snod_index = snod_index + 1
         
         elif item.variable == 'weasd' and item.statistic == 'variance':
-          calculated_variance = [2273.434235984401,3596.5679406750983] 
-          for index in range(len(calculated_variance)):
-               assert calculated_variance[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_variance[index] >= (1 - tolerance) * item.value[index]
-  
-def test_gridcell_min_max(tolerance=0.001):
+          assert weasd_variance[weasd_index] <= (1 + tolerance) * item.value
+          assert weasd_variance[weasd_index] >= (1 - tolerance) * item.value
+          weasd_index = weasd_index + 1
+
+def test_gridcell_min(tolerance=0.001):
     data1 = harvest(VALID_CONFIG_DICT)
-    
+   
+    snod_min = [0.0,0.0]
+    weasd_min = [0.0,0.0]
+    snod_index = 0
+    weasd_index = 0
+
     for item in data1:
         if item.variable == 'snod' and item.statistic == 'minimum':
-           calculated_min  = [0.0,0.0]
-           for index in range(len(calculated_min)):
-               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
-
-        elif item.variable == 'snod' and item.statistic == 'maximum':
-           calculated_max = [4.501649915605916,4.501649915605916]
-           for index in range(len(calculated_max)):
-               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_max[index] >= (1 - tolerance) * item.value[index]
+           assert snod_min[snod_index] <= (1 + tolerance) * item.value
+           assert snod_min[snod_index] >= (1 - tolerance) * item.value
+           snod_index = snod_index + 1
 
         elif item.variable == 'weasd' and item.statistic == 'minimum':
-           calculated_min = [0.0,0.0]
-           for index in range(len(calculated_min)):
-               assert calculated_min[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_min[index] >= (1 - tolerance) * item.value[index]
+             assert weasd_min[weasd_index] <= (1 + tolerance) * item.value
+             assert weasd_min[weasd_index] >= (1 - tolerance) * item.value
+             weasd_index = weasd_index + 1
+
+def test_gridcell_max(tolerance=0.001):
+    data1 = harvest(VALID_CONFIG_DICT)
+
+    snod_max = [4.501649915605916,4.501649915605916]
+    weasd_max = [1630.2353464365858,1630.2353464365858]
+    snod_index = 0
+    weasd_index = 0
+
+    for item in data1:
+        if item.variable == 'snod' and item.statistic == 'maximum':
+           assert snod_max[snod_index] <= (1 + tolerance) * item.value
+           assert snod_max[snod_index] >= (1 - tolerance) * item.value
 
         elif item.variable == 'weasd' and item.statistic == 'maximum':
-           calculated_max = [1630.2353464365858,1630.2353464365858]
-           for index in range(len(calculated_max)):
-               assert calculated_max[index] <= (1 + tolerance) * item.value[index]
-               assert calculated_max[index] >= (1 - tolerance) * item.value[index]               
-    
+             assert weasd_max[weasd_index] <= (1 + tolerance) * item.value
+             assert weasd_max[weasd_index] >= (1 - tolerance) * item.value
+             weasd_index = weasd_index + 1
+
 def test_units():
     variable_dictionary = {}
     data1 = harvest(VALID_CONFIG_DICT)
@@ -187,7 +203,8 @@ def main():
     test_units()
     test_global_mean_values()
     test_gridcell_variance()
-    test_gridcell_min_max()
+    test_gridcell_min()
+    test_gridcell_max()
     test_cycletime() 
     test_longname()
     test_snowiceocean_harvester()
