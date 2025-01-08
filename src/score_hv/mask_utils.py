@@ -61,7 +61,6 @@ class MaskCatalog:
         soil_snow_variables = ['soilt4','soilm','snod','tg3','tsnowp', 'weasd']
         ice_variables = ['icetk']
         sst_variables = ['sst','nsst']
-        print("the var name ",var_name)
         if var_name in soil_snow_variables:        
            """
              We will need the sotyp(soil type) variable from the dataset.
@@ -76,7 +75,6 @@ class MaskCatalog:
            masked_weights  = weights.where((sotyp_data != 0) & (sotyp_data != 16), drop=False)
         
         elif var_name in ice_variables:
-           print("in ice variables ",weights.shape)
            """
              The ice thikness variable has 0 everwhere except where there is ice.
              """
@@ -85,7 +83,6 @@ class MaskCatalog:
            masked_fraction = fraction_data
 
         elif var_name in sst_variables:
-           print("Variable is a sea surface variable")
            if var_name == "sst":
               """
                 For the sst(tmpsfc) variable we use the sotyp data and keep the
@@ -156,13 +153,11 @@ class MaskCatalog:
                   for grid points we do not want.
          """
         if mask_type == 'land':
-            print("land")
             masked_variable = variable_data.where((sotyp_data != 0) & (sotyp_data != 16),drop=False)
             masked_fraction = fraction_data.where((sotyp_data != 0) & (sotyp_data != 16),drop=False)
             masked_weights  = weights.where((sotyp_data != 0) & (sotyp_data != 16),drop=False)
         
         elif mask_type == 'water':
-            print("water")
             masked_variable = variable_data.where(sotyp_data == 0,False)
             masked_weights = weights.where(sotyp_data == 0,False)
             """
@@ -173,7 +168,6 @@ class MaskCatalog:
             masked_fraction = xr.where(fraction_data == 0, 1, xr.where(fraction_data == 1, 0, 1 - fraction_data))
 
         elif mask_type == 'ice':
-             print("ice")
              masked_variable = variable_data.where(sotyp_data == 16,False,drop=False)
              masked_weights = weights.where(sotyp_data == 16,False,drop=False)
              masked_fraction = fraction_data.where(sotyp_data == 16,False,drop=False)
@@ -183,10 +177,8 @@ class MaskCatalog:
         return(valid_variable_data,valid_fraction_data,masked_weights)
      
     def check_surface_mask(self,user_surface_mask):
-        print("in check surface mask")
         for mask in user_surface_mask:
             if mask not in VALID_MASKS:
-               print(mask)
                msg = f'The mask: {mask} is not a supported mask. ' \
                      f'Valid masks are: "none, land, water, ice.'
                raise ValueError(msg)

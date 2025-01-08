@@ -6,7 +6,6 @@ import ast
 import xarray as xr
 import numpy as np
 import cftime
-import copy
 from pathlib import Path
 from netCDF4 import MFDataset
 from datetime import datetime as dt
@@ -247,15 +246,6 @@ class DailyBFGHv(object):
         median_cftime = get_median_cftime(xr_dataset)
        
         """
-          We will always have a least one region so we can initialize the region catalog.
-          The regions were gathered in the get_regions method above in the DailyBFGConfig 
-          class and are defined in self.config.regions dictionary. 
-          """
-        regions_catalog = GeoRegionsCatalog(xr_dataset)
-        regions_catalog.add_user_region(self.config.regions)
-        regions_copy = copy.deepcopy(self.config.regions)
-
-        """
           Get the statistics requested by the user.  
           Instantiate the stats class in stats_util.py.
           Initialize the temporal_means list.  The
@@ -263,9 +253,16 @@ class DailyBFGHv(object):
           class and returned.
           """
         stats_list = self.config.get_stats()
-        var_stats_catalog = VarStatsCatalog(stats_list,self.config.regions)
-      
-       
+        var_stats_catalog = VarStatsCatalog(stats_list)
+
+        """
+          We will always have a least one region so we can initialize the region catalog.
+          The regions were gathered in the get_regions method above in the DailyBFGConfig 
+          class and are defined in self.config.regions dictionary. 
+          """
+        regions_catalog = GeoRegionsCatalog(xr_dataset)
+        regions_catalog.add_user_region(self.config.regions)
+
         """
           Initialize the mask class in case we need it. 
           Most all of the mask utilities will need the
@@ -293,8 +290,6 @@ class DailyBFGHv(object):
             temporal_means = []
             var_stats_catalog.clear_requested_statistics()
             for iregion in range(len(self.config.regions)): #There is always at least one region.
-                region_name = list(self.config.regions.keys())[iregion]
-                print(region_name)
                 variable_data = regions_catalog.get_region_data(iregion,global_variable_data)
                 region_lat = variable_data.grid_yt
                 region_lon = variable_data.grid_xt
@@ -313,7 +308,7 @@ class DailyBFGHv(object):
                    normalized_weights = xr.where(weight_sum!=0,weights/weight_sum,np.nan)
                    value = calculate_temporal_mean(is_masked,masked_fraction,masked_variable,masked_weights)
                    temporal_means.append(value)
-                   var_stats_catalog.calculate_requested_statistics(masked_weights,value,region_name)
+                   var_stats_catalog.calculate_requested_statistics(masked_weights,value)
 
                 elif self.config.surface_mask != None:
                    is_masked = True
@@ -325,7 +320,7 @@ class DailyBFGHv(object):
                        normalized_weights = xr.where(weight_sum != 0, masked_weights / weight_sum, np.nan)
                        value = calculate_temporal_mean(is_masked,masked_fraction,masked_variable,masked_weights)
                        temporal_means.append(value)
-                       var_stats_catalog.calculate_requested_statistics(masked_weights,value,region_name)
+                       var_stats_catalog.calculate_requested_statistics(masked_weights,value)
                 else:
                    is_masked = False
                    mask = 'None'
@@ -333,41 +328,36 @@ class DailyBFGHv(object):
                    normalized_weights = xr.where(weight_sum!=0,weights/weight_sum,np.nan)
                    value = calculate_temporal_mean(is_masked,fraction_data,variable_data,normalized_weights)
                    temporal_means.append(value)
-                   var_stats_catalog.calculate_requested_statistics(weights,value,region_name)
+                   var_stats_catalog.calculate_requested_statistics(weights,value)
 
-               # updated_region = var_stats_catalog.regions.get(region_name)
-               # print("updated region ",region_name,"  ",updated_region)
-
-            for iregion in range(len(self.config.regions)):
-                region_name = list(self.config.regions.keys())[iregion]
-                for j, statistic in enumerate(self.config.get_stats()):
-                    """ The j loop iterates through each requested 
-                        statistic and region.
-                        """
-                    if statistic == 'mean':
-                       value = self.config.regions[region_name]['mean']
-                       print(variable,"  ",value)                
-                    elif statistic == 'variance':
-                       value = self.config.regions[region_name]['variance']         
+            for j, statistic in enumerate(self.config.get_stats()):
+                """ The second nested loop iterates through each requested 
+                    statistic and regions if the user has requested geographical
+                    regions..
+                    """
+                if statistic == 'mean':
+                    value = var_stats_catalog.weighted_averages 
+                    
+                elif statistic == 'variance':
+                    value = var_stats_catalog.variances
                                          
-                    elif statistic == 'maximum':
-                       value = self.config.regions[region_name]['maximum']
-                    
-                    elif statistic == 'minimum':
-                       value = self.config.regions[region_name]['minimum']
-                    
-                    harvested_data.append(HarvestedData(
-                                          self.config.harvest_filenames,
-                                          statistic, 
-                                          variable,
-                                          np.float32(value),
-                                          units,
-                                          dt.fromisoformat(median_cftime.isoformat()),
-                                          longname,
-                                          self.config.surface_mask,
-                                          regions_copy))
- 
-      
+                elif statistic == 'maximum':
+                    value = var_stats_catalog.maximum
+                 
+                elif statistic == 'minimum':
+                    value = var_stats_catalog.minimum
+                
+                harvested_data.append(HarvestedData(
+                                      self.config.harvest_filenames,
+                                       statistic, 
+                                       variable,
+                                       np.float32(value),
+                                       units,
+                                       dt.fromisoformat(median_cftime.isoformat()),
+                                       longname,
+                                       self.config.surface_mask,
+                                       self.config.regions))
+       
         gridcell_area_data.close()
         xr_dataset.close()
         return harvested_data

@@ -168,7 +168,7 @@ class GeoRegionsCatalog:
            lat_start_index = latitude_indices[0]
            lat_end_index = latitude_indices[-1]
         else:
-           msg=f"No latitude values were found within the specified range of {south_lat} and {max_lat}."
+           msg=f"No latitude values were found within the specified range of {south_lat} and {north_lat}."
            raise KeyError(msg)
 
        

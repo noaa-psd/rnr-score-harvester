@@ -6,7 +6,6 @@ import ast
 import xarray as xr
 import numpy as np
 import cftime
-import copy
 from pathlib import Path
 from netCDF4 import MFDataset
 from datetime import datetime as dt
@@ -253,8 +252,6 @@ class DailyBFGHv(object):
           """
         regions_catalog = GeoRegionsCatalog(xr_dataset)
         regions_catalog.add_user_region(self.config.regions)
-        regions_copy = copy.deepcopy(self.config.regions)
-
         """
           Get the statistics requested by the user.  
           Instantiate the stats class in stats_util.py.
@@ -294,7 +291,6 @@ class DailyBFGHv(object):
             var_stats_catalog.clear_requested_statistics()
             for iregion in range(len(self.config.regions)): #There is always at least one region.
                 region_name = list(self.config.regions.keys())[iregion]
-                print(region_name)
                 variable_data = regions_catalog.get_region_data(iregion,global_variable_data)
                 region_lat = variable_data.grid_yt
                 region_lon = variable_data.grid_xt
@@ -335,39 +331,46 @@ class DailyBFGHv(object):
                    temporal_means.append(value)
                    var_stats_catalog.calculate_requested_statistics(weights,value,region_name)
 
-               # updated_region = var_stats_catalog.regions.get(region_name)
-               # print("updated region ",region_name,"  ",updated_region)
-
-            for iregion in range(len(self.config.regions)):
-                region_name = list(self.config.regions.keys())[iregion]
-                for j, statistic in enumerate(self.config.get_stats()):
-                    """ The j loop iterates through each requested 
-                        statistic and region.
-                        """
-                    if statistic == 'mean':
-                       value = self.config.regions[region_name]['mean']
-                       print(variable,"  ",value)                
-                    elif statistic == 'variance':
-                       value = self.config.regions[region_name]['variance']         
+            updated_region = var_stats_catalog.regions.get(region_name)
+            print("updated region ",updated_region)
+            sys.exit(0)      
+            for j, statistic in enumerate(self.config.get_stats()):
+                """ The second nested loop iterates through each requested 
+                    statistic and regions if the user has requested geographical
+                    regions..
+                    """
+                if statistic == 'mean':
+                    values = var_stats_catalog.weighted_averages 
+                    
+                elif statistic == 'variance':
+                    values = var_stats_catalog.variances
                                          
-                    elif statistic == 'maximum':
-                       value = self.config.regions[region_name]['maximum']
-                    
-                    elif statistic == 'minimum':
-                       value = self.config.regions[region_name]['minimum']
-                    
-                    harvested_data.append(HarvestedData(
-                                          self.config.harvest_filenames,
-                                          statistic, 
-                                          variable,
-                                          np.float32(value),
-                                          units,
-                                          dt.fromisoformat(median_cftime.isoformat()),
-                                          longname,
-                                          self.config.surface_mask,
-                                          regions_copy))
- 
-      
+                elif statistic == 'maximum':
+                    values = var_stats_catalog.maximum
+                 
+                elif statistic == 'minimum':
+                    values = var_stats_catalog.minimum
+
+                # Loop through each region and assign statistics
+                #for iregion, region_name in enumerate(region_names):
+                #        {
+                #      'mean': mean_values[iregion],  # Get the mean for the current region
+                #      'variance': variance_values[iregion],  # Get the variance for the current region
+                #      'maximum': max_values[iregion],  # Get the maximum for the current region
+                #      'minimum': min_values[iregion]   # Get the minimum for the current region
+                #}
+                harvested_data.append(HarvestedData(
+                                      self.config.harvest_filenames,
+                                       statistic, 
+                                       variable,
+                                       np.float32(value),
+                                       units,
+                                       dt.fromisoformat(median_cftime.isoformat()),
+                                       longname,
+                                       self.config.surface_mask,
+                                       self.config.regions))
+                                       #put var_stats_catalog.regions           
+       
         gridcell_area_data.close()
         xr_dataset.close()
         return harvested_data
