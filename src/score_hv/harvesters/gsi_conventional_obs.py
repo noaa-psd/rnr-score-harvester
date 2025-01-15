@@ -15,8 +15,7 @@ HARVESTER_NAME = 'gsi_conventional_obs'
 
 VALID_VARIABLES = (
     'fit_psfc_data', # fit of surface pressure data (mb)
-    'fit_u_data', # fit of u wind data (m/s),
-    'fit_v_data', # fit of v wind data (m/s),
+    'fit_uv_data', # fit of u, v wind data (m/s),
     'fit_t_data', # fit of temperature data (K)
     'fit_q_data', # fit of moisture data (% of qsaturation guess)
 )
@@ -51,8 +50,7 @@ HarvestedData = namedtuple(
 def get_longname(variable):
     
     longnames = {'fit_psfc_data': 'fit of surface pressure data',
-                 'fit_u_data': 'fit of u wind data',
-                 'fit_v_data': 'fit of v wind data',
+                 'fit_uv_data': 'fit of u, v wind data',
                  'fit_t_data': 'fit of temperature data',
                  'fit_q_data': r'fit of moisture data (% of qsaturation guess)'}
     
@@ -61,8 +59,7 @@ def get_longname(variable):
 def get_units(statistic, variable):
     
     units = {'fit_psfc_data': 'mb',
-             'fit_u_data': 'm/s',
-             'fit_v_data': 'm/s',
+             'fit_uv_data': 'm/s',
              'fit_t_data': 'K',
              'fit_q_data': r'%'}
              
@@ -120,7 +117,7 @@ class GSIConvObsHv(object):
     config: GSIConvObsConfig = field(default_factory = GSIConvObsConfig)
     
     def get_data(self):
-        """Read the fit file (from the GSI analysis output)"
+        """Read the fit file (from the GSI analysis output)
         
         returns a list of HarvestedData tuples
         """
@@ -196,129 +193,166 @@ class GSIConvObsHv(object):
         
         return harvested_data 
     
+    def extract_fit_uv(self, line_parts):
+        """ extract fit to u, v wind stats from a given line of the fort.202
+        file
+        """
+        if line_parts[0] == 'current' and line_parts[1] == 'vfit':
+            self.read_fit_uv = True
+        elif self.read_fit_uv and line_parts[0] == 'o-g' and line_parts[1] == 'ptop':
+            self.results['fit_uv_data']['plevs_top'].append(list())
+            self.results['fit_uv_data']['plevs_bot'].append(list())
+            for plev, ptop in enumerate(line_parts[2:]):
+                self.results['fit_uv_data']['plevs_top'][-1].append(float(ptop))
+        elif self.read_fit_uv and line_parts[0] == 'o-g' and line_parts[1] == 'it':
+            read_pbot = False
+            for col, value in enumerate(line_parts[2:]):
+                if read_pbot:
+                    self.results['fit_uv_data']['plevs_bot'][-1].append(
+                        float(value)
+                    )
+                if value == 'pbot':
+                    read_pbot=True
+                    
+            if len(self.results['fit_uv_data']['plevs_top'][-1]) != len(
+                self.results['fit_uv_data']['plevs_bot'][-1]):
+                raise RuntimeError(f'extracted inconsistent number of pressure '
+                    f'levels (ptop and pbot) from wind data in '
+                    f'{self.config.harvest_filename}')
+        else:
+            self.read_fit_uv = False
+            
+    def extract_fit_ps(self, line_parts):
+        """ extract fit to surface pressure stats from a given line of the
+        fort.201 file
+        """
+        if line_parts[0] == 'pressure' and line_parts[1] == 'levels':
+            self.read_fit_ps = True
+            self.results['fit_psfc_data']['plevs_units'].append(
+                line_parts[2][1:-2]
+            )
+            self.results['fit_psfc_data']['plevs_top'].append(
+                [float(line_parts[3])]
+            )
+            self.results['fit_psfc_data']['plevs_bot'].append(
+                [float(line_parts[4])]
+            )
+
+        elif self.read_fit_ps and line_parts[0] == 'o-g' and line_parts[1] == 'it':
+            for stat in self.config.stats_to_harvest:
+                for col, part in enumerate(line_parts):
+                    if part=='it' or part=='obs' or part=='use' or part=='typ' or part=='styp' or part==stat: 
+                        # store column index and column name
+                        
+                        if part in self.results[
+                            'fit_psfc_data'][
+                                stat].keys():
+                            """data entries exist, update only the
+                            column indicies
+                            """
+                            self.results[
+                                'fit_psfc_data'][
+                                    stat][
+                                        part][
+                                            'column_index'] = col
+                        else:
+                            """no results added yet, create empty list
+                            to store values
+                            """
+                            self.results[
+                                'fit_psfc_data'][
+                                    stat][
+                                        part] = {'column_index': col,
+                                                 'values': list()}
+                                                                 
+        elif self.read_fit_ps and line_parts[0] == 'o-g' and line_parts[2] == 'ps':
+           
+           for stat in self.config.stats_to_harvest:
+               for column_name, column_values in self.results['fit_psfc_data'][stat].items():
+                   column_index = self.results[
+                       'fit_psfc_data'][
+                           stat][
+                               column_name][
+                                   'column_index']
+                   if column_name == 'count':
+                       return_value = [int(line_parts[column_index])]
+                   elif column_name == stat:  
+                       return_value = [float(line_parts[column_index])]
+                   else:
+                       return_value = line_parts[column_index]
+                   
+                   self.results[
+                       'fit_psfc_data'][
+                           stat][column_name][
+                               'values'].append(return_value)
+                
+        elif self.read_fit_ps and line_parts[0] == 'o-g' and line_parts[3] == 'all':
+            # stats for all surface pressure observation types
+            for stat in self.config.stats_to_harvest:
+                self.results[
+                    'fit_psfc_data'][
+                        stat][
+                            'it'][
+                                'values'].append(
+                                    line_parts[1])
+                self.results[
+                    'fit_psfc_data'][
+                        stat][
+                            'use'][
+                                'values'].append(
+                                    line_parts[2])
+                self.results[
+                    'fit_psfc_data'][
+                        stat][
+                            'typ'][
+                                'values'].append(
+                                    line_parts[3])
+                                    
+                self.results[
+                    'fit_psfc_data'][
+                        stat][
+                            'styp'][
+                                'values'].append(None)
+                
+                for column_name, column_values in self.results['fit_psfc_data'][stat].items():
+                    if column_name == stat:
+                        column_index = self.results[
+                            'fit_psfc_data'][
+                                stat][
+                                    column_name][
+                                        'column_index'] - 2 # this is a
+                                    # weird corner case where the row is
+                                    # formatted differently for all
+                                    # observations than for stats by
+                                    # observtion type
+                        if column_name == 'count':
+                            return_value = [int(
+                                             line_parts[column_index])]
+                        else:
+                            return_value = [float(
+                                              line_parts[column_index])]
+                        
+                        self.results[
+                            'fit_psfc_data'][
+                                stat][column_name][
+                                    'values'].append(return_value)
+        
+        elif line_parts[0] == 'current' and line_parts[1] == 'vfit':
+            self.read_fit_ps = False
+    
     def parse_fit_file(self):
         """ parse lines of fit file and extract statistics
         """
-        read_fit_ps = False
+        self.read_fit_ps = False
+        self.read_fit_uv = False
         
         for line_number, line in enumerate(self.lines):
             line_parts = line.split()
             if 'fit_psfc_data' in self.config.vars_to_harvest and len(line_parts) > 2:
-                """extract fit of surface pressure data statistics
-                """
-                if line_parts[0] == 'pressure' and line_parts[1] == 'levels':
-                    read_fit_ps = True
-                    self.results['fit_psfc_data']['plevs_units'].append(
-                        line_parts[2][1:-2]
-                    )
-                    self.results['fit_psfc_data']['plevs_top'].append(
-                        [float(line_parts[3])]
-                    )
-                    self.results['fit_psfc_data']['plevs_bot'].append(
-                        [float(line_parts[4])]
-                    )
-
-                elif read_fit_ps and line_parts[0] == 'o-g' and line_parts[1] == 'it':
-                    for stat in self.config.stats_to_harvest:
-                        for col, part in enumerate(line_parts):
-                            if part=='it' or part=='obs' or part=='use' or part=='typ' or part=='styp' or part==stat: 
-                                # store column index and column name
-                                
-                                if part in self.results[
-                                    'fit_psfc_data'][
-                                        stat].keys():
-                                    """data entries exist, update only the
-                                    column indicies
-                                    """
-                                    self.results[
-                                        'fit_psfc_data'][
-                                            stat][
-                                                part][
-                                                    'column_index'] = col
-                                else:
-                                    """no results added yet, create empty list
-                                    to store values
-                                    """
-                                    self.results[
-                                        'fit_psfc_data'][
-                                            stat][
-                                                part] = {'column_index': col,
-                                                         'values': list()}
-                                                                         
-                elif read_fit_ps and line_parts[0] == 'o-g' and line_parts[2] == 'ps':
-                   
-                   for stat in self.config.stats_to_harvest:
-                       for column_name, column_values in self.results['fit_psfc_data'][stat].items():
-                           column_index = self.results[
-                               'fit_psfc_data'][
-                                   stat][
-                                       column_name][
-                                           'column_index']
-                           if column_name == 'count':
-                               return_value = [int(line_parts[column_index])]
-                           elif column_name == stat:  
-                               return_value = [float(line_parts[column_index])]
-                           else:
-                               return_value = line_parts[column_index]
-                           
-                           self.results[
-                               'fit_psfc_data'][
-                                   stat][column_name][
-                                       'values'].append(return_value)
-                        
-                elif read_fit_ps and line_parts[0] == 'o-g' and line_parts[3] == 'all':
-                    # stats for all surface pressure observation types
-                    for stat in self.config.stats_to_harvest:
-                        self.results[
-                            'fit_psfc_data'][
-                                stat][
-                                    'it'][
-                                        'values'].append(
-                                            line_parts[1])
-                        self.results[
-                            'fit_psfc_data'][
-                                stat][
-                                    'use'][
-                                        'values'].append(
-                                            line_parts[2])
-                        self.results[
-                            'fit_psfc_data'][
-                                stat][
-                                    'typ'][
-                                        'values'].append(
-                                            line_parts[3])
-                                            
-                        self.results[
-                            'fit_psfc_data'][
-                                stat][
-                                    'styp'][
-                                        'values'].append(None)
-                        
-                        for column_name, column_values in self.results['fit_psfc_data'][stat].items():
-                            if column_name == stat:
-                                column_index = self.results[
-                                    'fit_psfc_data'][
-                                        stat][
-                                            column_name][
-                                                'column_index'] - 2 # this is a
-                                            # weird corner case where the row is
-                                            # formatted differently for all
-                                            # observations than for stats by
-                                            # observtion type
-                                if column_name == 'count':
-                                    return_value = [int(
-                                                     line_parts[column_index])]
-                                else:
-                                    return_value = [float(
-                                                      line_parts[column_index])]
-                                
-                                self.results[
-                                    'fit_psfc_data'][
-                                        stat][column_name][
-                                            'values'].append(return_value)
+                self.extract_fit_ps(line_parts)
+            if 'fit_uv_data' in self.config.vars_to_harvest and len(line_parts) > 2:
+                self.extract_fit_uv(line_parts)
                 
-                elif line_parts[0] == 'current' and line_parts[1] == 'vfit':
-                    read_fit_ps = False
                 
 def test(gsistats_test_file):
     test_datetime = datetime.strptime(

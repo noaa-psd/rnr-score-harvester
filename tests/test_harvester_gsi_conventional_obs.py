@@ -21,8 +21,7 @@ VALID_CONFIG_DICT = {
     'harvester_name': hv_registry.GSI_CONVENTIONAL_OBS,
     'filename': FIT_FILE_PATH,
     'variables': ('fit_psfc_data', # fit of surface pressure data (mb)
-                  #'fit_u_data', # fit of u wind data (m/s),
-                  #'fit_v_data', # fit of v wind data (m/s),
+                  'fit_uv_data', # fit of u, v wind data (m/s),
                   #'fit_t_data', # fit of temperature data (K)
                   #'fit_q_data', # fit of moisture data (% of qsaturation guess)
                   ),
