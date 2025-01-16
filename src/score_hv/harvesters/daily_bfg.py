@@ -2,42 +2,54 @@
 
 import os
 import sys
-from pathlib import Path
-from collections import namedtuple
-from dataclasses import dataclass
-from dataclasses import field
-from datetime import datetime as dt
-
+import ast
 import xarray as xr
 import numpy as np
 import cftime
+import copy
+from pathlib import Path
 from netCDF4 import MFDataset
+from datetime import datetime as dt
+from collections import namedtuple
+from dataclasses import dataclass
+from dataclasses import field
+from score_hv.config_base  import ConfigInterface
+from score_hv.stats_utils  import VarStatsCatalog  
+from score_hv.region_utils import GeoRegionsCatalog
+from score_hv.mask_utils import MaskCatalog
+from score_hv.variable_utils import VarUtilsCatalog
 
-from score_hv.config_base import ConfigInterface
-from score_hv import stats_utils
 
 HARVESTER_NAME = 'daily_bfg'
 VALID_STATISTICS = ('mean', 'variance', 'minimum', 'maximum')
-
-"""Variables of interest that come from the background forecast data.
-Commented out variables can be uncommented to generate gridcell weighted
-statistics but are in development and are currently not fully supported.
+VALID_REGION_BOUND_KEYS = ('min_lat', 'max_lat', 'west_lon', 'east_lon')
+DEFAULT_REGION = {'global': {'north_lat': 90.0, 'south_lat': -90.0, 'west_long': 0.0, 'east_long': 360.0}}
 """
-VALID_VARIABLES  = (#'icetk', # sea ice thickness (m)
-                    #'lhtfl_ave', # surface latent heat flux (W m^-2)
-                    'netrf_avetoa', # top of atmosphere net radiation flux (SW and LW) (W m^-2)
-                    #'prate_ave', # surface precip rate (mm weq. s^-1)
-                    'prateb_ave', # bucket surface precip rate (mm weq. s^-1)
-                    #'pressfc', # surface pressure (Pa)
-                    #'snod', # surface snow depth (m)
-                    #'soil4', # liquid soil moisture at layer-4 (?)
-                    #'soilm', # total column soil moisture content (mm weq.)
-                    #'soilt4', # soil temperature unknown layer 4 (K)
-                    #'tg3', # deep soil temperature (K)
+  VALID_VARIABLES are the variables of interest that come from the background forecast data.
+"""
+VALID_VARIABLES  = (
+                    'icetk', # sea ice thickness (m)
+                    'lhtfl_ave',# surface latent heat flux (W/m**2)
+                    'shtfl_ave', # surface sensible heat flux (W/m**2)
+                    'dlwrf_ave', # surface downward longwave flux (W/m**2)
+                    'dswrf_ave', # averaged surface downward shortwave flux (W/m**2)
+                    'ulwrf_ave', # surface upward longwave flux (W/m**2)
+                    'uswrf_ave', # averaged surface upward shortwave flux (W/m**2)
+                    'netrf_avetoa',#top of atmosphere net radiative flux (SW and LW) (W/m**2)
+                    'netef_ave',#surface energy balance (W/m**2)
+                    'nsst', # near sea surface temperature(K), using tref over the ocean only.
+                    'prate_ave', # surface precip rate (mm weq. s^-1)
+                    'pressfc', # surface pressure (Pa)
+                    'snowc_ave', # snow cover -GFS lsm
+                    'snod', # surface snow depth (m)
+                    'soilm', # total column soil moisture content (mm weq.)
+                    'soilt4', # soil temperature unknown layer 4 (K)
+                    'sst', # sea surface temperature(K),using tmpsfc over the ocean only.
+                    'tg3', # deep soil temperature (K)
                     'tmp2m', # 2m (surface air) temperature (K)
-                    #'tmpsfc', # surface temperature (K)
+                    'tsnowp', #accumulated surface snow (kg/m**2)
                     'ulwrf_avetoa', # top of atmos upward longwave flux (W m^-2)
-                    #'weasd', # surface snow water equivalent (mm weq.)
+                    'weasd', # surface snow water equivalent (kg/m**2)
                     )
 
 HarvestedData = namedtuple('HarvestedData', ['filenames',
@@ -46,13 +58,74 @@ HarvestedData = namedtuple('HarvestedData', ['filenames',
                                              'value',
                                              'units',
                                              'mediantime',
-                                             'longname'])
-
+                                             'longname',
+                                             'surface_mask',
+                                             'regions'])
 def get_gridcell_area_data_path():
     return os.path.join(Path(__file__).parent.parent.resolve(),
                         'data', 'gridcell-area' + 
                         '_noaa-ufs-gefsv13replay-pds' + 
                         '_bfg_control_1536x768_20231116.nc')
+
+def get_median_cftime(xr_dataset):
+    """the xr_dataset is a netcdf bfg_xr_dataset.  Where time stamps represent
+       end points for the time period.
+       """
+    temporal_endpoints = np.array([cftime.date2num(time, \
+                                   'hours since 1951-01-01 00:00:00') \
+                                   for time in xr_dataset['time']])
+    num_times = len(temporal_endpoints)
+    if  num_times > 1:
+        """ can estimate the time step only if there're more than 1
+            timestamps
+            """
+        temporal_midpoints = temporal_endpoints - np.gradient(temporal_endpoints)/2.
+
+        median_cftime = cftime.num2date(np.median(temporal_midpoints), \
+                                            'hours since 1951-01-01 00:00:00')
+    else:
+        median_cftime = cftime.num2date(np.median(temporal_endpoints), \
+                                         'hours since 1951-01-01 00:00:00')
+    return(median_cftime) 
+
+def calculate_temporal_mean(masked_variable,fraction_data,variable_data,normalized_weights):
+    """
+       special variable list: ['icetk','nsst','snod','soilm','soilt4','sst','tg3','tsnowp','weasd']
+       Parameters:
+                masked_variable - masked_variable:
+                                  True if the variable name is in the special variable list. 
+                                  These variable
+                                  are automatically masked before any calculations are done.
+                                  True if the user has requested a mask.
+                                  False if the user did not request a mask and the variable name
+                                  is not as defined above.
+                fraction_data - The fraction data is either the land fraction(lfrac) or the 
+                                ice fraction(icec).  The fraction data will come in as 
+                                as region if the user has requested a reqion and/or masked if the user
+                                has requested a mask, or if it is one of the special variables listed above.
+                                The fraction data type is <class 'xarray.core.dataarray.DataArray'>
+                variable_data - The variable data.
+                                The variable data type is <class 'xarray.core.dataarray.DataArray'>
+                weights - The area weigths.
+                          The area weights type is <class 'xarray.core.dataarray.DataArray'>    
+      return: The temporal mean of the region_variable_data as calculated from 
+      """
+    if masked_variable:  
+       weighted_data_sum = ( fraction_data * variable_data * normalized_weights).sum(dim='time', skipna=True)
+       normalized_weights_sum = ( fraction_data * normalized_weights).sum(dim='time',skipna=True)
+       normalized_weights_sum = normalized_weights_sum.where(normalized_weights_sum != 0, np.nan)
+    else: 
+       """
+         The fraction data is not used if the user has not requested a mask or if the 
+         variable is not in the special variable list.  This is because the land fraction
+         data has 0 over the ocean.
+         """
+       weighted_data_sum = ( variable_data * normalized_weights).sum(dim='time', skipna=True)
+       normalized_weights_sum = normalized_weights.sum(dim='time',skipna=True)
+
+    value = (weighted_data_sum / normalized_weights_sum).where(normalized_weights_sum != 0, np.nan)
+    return(value)
+
 @dataclass
 class DailyBFGConfig(ConfigInterface):
 
@@ -64,9 +137,11 @@ class DailyBFGConfig(ConfigInterface):
     def set_config(self):
         """ function to set configuration variables from given dictionary
         """
-        self.harvest_filenames = self.config_data.get('filenames')
+        self.harvest_filenames=self.config_data.get('filenames')
         self.set_stats()
         self.set_variables()
+        self.set_surface_mask()
+        self.set_regions()
 
     def set_variables(self):
         """
@@ -81,10 +156,26 @@ class DailyBFGConfig(ConfigInterface):
                        "Please reconfigure the input dictionary using only the "
                        "following variables: %r" % (var, VALID_VARIABLES))
                 raise KeyError(msg)
-    
+     
     def get_stats(self):
         ''' return list of all stat types based on harvest_config '''
         return self.stats
+   
+    def get_masks(self):
+        return self.surface_mask
+
+    def set_surface_mask(self):
+        self.surface_mask = self.config_data.get('surface_mask')
+    
+    def get_regions(self):
+        ''' return list of regions based on harvest config'''
+        return self.regions
+
+    def set_regions(self):
+        self.regions = self.config_data.get('regions')
+        if self.regions is None:   
+           self.regions =  DEFAULT_REGION
+           print("Setting a default global region ",self.regions)
 
     def set_stats(self):
         """
@@ -98,7 +189,7 @@ class DailyBFGConfig(ConfigInterface):
                        "Please reconfigure the input dictionary using only the "
                        "following statistics: %r" % (stat, VALID_STATISTICS))
                 raise KeyError(msg)
-
+    
     def get_variables(self):
         ''' return list of all variable types based on harvest_config'''
         return self.variables
@@ -116,7 +207,6 @@ class DailyBFGHv(object):
         --------
         get_data: parse descriptive statistics from log files based on input
                   config file
-    
                   returns a list of tuples containing specific data
     """
     config: DailyBFGConfig = field(default_factory=DailyBFGConfig)
@@ -136,112 +226,148 @@ class DailyBFGHv(object):
             then used to determine the multi-file temporal midpoint.
         """
         harvested_data = list()
-        
+       
         xr_dataset = xr.open_mfdataset(self.config.harvest_filenames, 
                                        combine='nested', 
                                        concat_dim='time',
                                        decode_times=True)
+        var_utils_catalog = VarUtilsCatalog(xr_dataset)
+        num_times = xr_dataset.sizes['time']
         gridcell_area_data = xr.open_dataset(get_gridcell_area_data_path())
-        gridcell_area_weights = gridcell_area_data.variables['area']
+        gridcell_area_weights = gridcell_area_data['area']
+        """
+          For consistancy in the calculations we make the global area weights a
+          three dimensionsal data.  The calculations fail at times unless this is
+          done.
+          """
+        global_area_weights = gridcell_area_weights.expand_dims(dim='time', axis=0)
+        global_area_weights = xr.concat([global_area_weights] * num_times, dim='time')
+        global_area_weights = global_area_weights.assign_coords(time=xr_dataset['time']) 
 
-        temporal_endpoints = np.array([cftime.date2num(time,
-            'hours since 1951-01-01 00:00:00') for time in xr_dataset['time']])
-        
-        if len(self.config.harvest_filenames) > 1:
-            """ can estimate the time step only if there're more than 1 
-                timestamps
-            """
-            temporal_midpoints = temporal_endpoints - np.gradient(temporal_endpoints)/2.
-        
-            median_cftime = cftime.num2date(np.median(temporal_midpoints),
-                                            'hours since 1951-01-01 00:00:00')
-        else:
-            median_cftime = cftime.num2date(np.median(temporal_endpoints),
-                                            'hours since 1951-01-01 00:00:00')
+        median_cftime = get_median_cftime(xr_dataset)
+       
+        """
+          We will always have a least one region so we can initialize the region catalog.
+          The regions were gathered in the get_regions method above in the DailyBFGConfig 
+          class and are defined in self.config.regions dictionary. 
+          """
+        regions_catalog = GeoRegionsCatalog(xr_dataset)
+        regions_catalog.add_user_region(self.config.regions)
+        regions_copy = copy.deepcopy(self.config.regions)
+
+        """
+          Get the statistics requested by the user.  
+          Instantiate the stats class in stats_util.py.
+          Initialize the temporal_means list.  The
+          temporal_means are calculated in the stats_util.py
+          class and returned.
+          """
+        stats_list = self.config.get_stats()
+        var_stats_catalog = VarStatsCatalog(stats_list,self.config.regions)
+      
+       
+        """
+          Initialize the mask class in case we need it. 
+          Most all of the mask utilities will need the
+          soil type variable. We can store it in the mask
+          class. 
+          """
+        global_soil_type_data = var_utils_catalog.get_soil_type_data()
+        mask_instance = MaskCatalog()
 
         for i, variable in enumerate(self.config.get_variables()):
-            """ The first nested loop iterates through each requested variable.
+            """ 
+              The first nested loop iterates through each requesed variable.
+              """
+            namelist=self.config.get_variables()
+            var_name=namelist[i]
+            global_variable_data,longname,units = var_utils_catalog.extract_variable_info(var_name)
+            global_fraction_data = var_utils_catalog.get_fraction_data(var_name) 
             """
-            if variable == 'netrf_avetoa': 
-                """The variable name netrf_avetoa referes to the top of the 
-                atmosphere (TOA) net radiative energy flux. Here, functions 
-                from the stats_utils.py file are called to calculate statistics 
-                for the required component variables. The TOA net energy flux
-                is defined as the following:
-                
-                netrf_avetoa = dswrf_avetoa - uswrf_avetoa - ulwrf_avetoa,
-                
-                where dswrf_avetoa, uswrf_avetoa, ulwrf_avetoa are the
-                corresponding mean TOA downward shortwave, upward shortwave and
-                upward longwave radiation fluxes, respectively.
-                """
-                longname = "Top of atmosphere net radiative energy flux"
-                units = "W/m**2"
-                
-                try:
-                    temporal_means = (
-                        np.ma.masked_invalid(xr_dataset['dswrf_avetoa'].mean(
-                                                                dim='time',
-                                                                skipna=True)) - 
-                        np.ma.masked_invalid(xr_dataset['uswrf_avetoa'].mean(
-                                                                dim='time',
-                                                                skipna=True)) - 
-                        np.ma.masked_invalid(xr_dataset['ulwrf_avetoa'].mean(
-                                                                dim='time',
-                                                                skipna=True)))
-                except KeyError as err:
-                    msg = (f'{xr_dataset.data_vars} '
-                           'do not include all '
-                           'variables needed to calculate TOA net '
-                           'radiative energy flux '
-                           '("dswrf_avetoa," "uswrf_avetoa" and '
-                           '"ulwrf_avetoa")')
-                    raise KeyError(msg) from err
-                                                                
-            else:
-                variable_data = xr_dataset[variable]
-                if 'long_name' in variable_data.attrs:
-                    longname = variable_data.attrs['long_name']
+              The temporal means is a list which will hold the 
+              temporal means calculated in this function.
+              The temporal means are passed into the stats_util 
+              class in order to calculate the statistics requested
+              by the user.
+              """
+            temporal_means = []
+            var_stats_catalog.clear_requested_statistics()
+            for iregion in range(len(self.config.regions)): #There is always at least one region.
+                region_name = list(self.config.regions.keys())[iregion]
+                print(region_name)
+                variable_data = regions_catalog.get_region_data(iregion,global_variable_data)
+                region_lat = variable_data.grid_yt
+                region_lon = variable_data.grid_xt
+                # Use the variable_data region as a template for weights,fraction_data, and soil_type_data.
+                weights = global_area_weights.sel(grid_yt=region_lat, grid_xt=region_lon)
+                fraction_data = global_fraction_data.sel(grid_yt=region_lat, grid_xt=region_lon)
+                soil_type_data = global_soil_type_data.sel(grid_yt=region_lat, grid_xt=region_lon) 
+                initial_mask_variable = mask_instance.check_variable_to_mask(var_name)
+                if initial_mask_variable:
+                   is_masked = True
+                   masked_variable,masked_fraction,masked_weights = \
+                          mask_instance.initial_mask_variable(var_name,variable_data,fraction_data, \
+                          weights,soil_type_data)
+                   
+                   weight_sum = weights.sum(dim=['grid_yt', 'grid_xt'], skipna=True)
+                   normalized_weights = xr.where(weight_sum!=0,weights/weight_sum,np.nan)
+                   value = calculate_temporal_mean(is_masked,masked_fraction,masked_variable,masked_weights)
+                   temporal_means.append(value)
+                   var_stats_catalog.calculate_requested_statistics(masked_weights,value,region_name)
+
+                elif self.config.surface_mask != None:
+                   is_masked = True
+                   mask_instance.check_surface_mask(self.config.surface_mask)
+                   for mask in self.config.surface_mask:
+                       masked_variable,masked_fraction,masked_weights = \
+                            mask_instance.user_mask(mask,variable_data,fraction_data,weights,soil_type_data) 
+                       weight_sum = masked_weights.sum(dim=['grid_yt', 'grid_xt'], skipna=True)
+                       normalized_weights = xr.where(weight_sum != 0, masked_weights / weight_sum, np.nan)
+                       value = calculate_temporal_mean(is_masked,masked_fraction,masked_variable,masked_weights)
+                       temporal_means.append(value)
+                       var_stats_catalog.calculate_requested_statistics(masked_weights,value,region_name)
                 else:
-                    longname = "None"
-                if 'units' in variable_data.attrs:
-                    units = variable_data.attrs['units']
-                else:
-                    units = "None"
-                
-                temporal_means = np.ma.masked_invalid(
-                    variable_data.mean(dim='time',skipna=True))
-            
-            expected_value = stats_utils.area_weighted_mean(
-                                               temporal_means,
-                                               gridcell_area_weights)
-            
-            for j, statistic in enumerate(self.config.get_stats()):
-                """ The second nested loop iterates through each requested 
-                    statistic
-                """
-                if statistic == 'mean':
-                    value = expected_value
-                elif statistic == 'variance':
-                    value = stats_utils.area_weighted_variance(
-                                                temporal_means,
-                                                gridcell_area_weights,        
-                                                expected_value=expected_value)
-                elif statistic == 'maximum':
-                    value = np.ma.max(temporal_means)
-                
-                elif statistic == 'minimum':
-                    value = np.ma.min(temporal_means)
-                
-                harvested_data.append(HarvestedData(
-                                    self.config.harvest_filenames,
-                                    statistic, 
-                                    variable,
-                                    np.float32(value),
-                                    units,
-                                    dt.fromisoformat(median_cftime.isoformat()),
-                                    longname))
-        
+                   is_masked = False
+                   mask = 'None'
+                   weight_sum = weights.sum(dim=['grid_yt', 'grid_xt'], skipna=True)
+                   normalized_weights = xr.where(weight_sum!=0,weights/weight_sum,np.nan)
+                   value = calculate_temporal_mean(is_masked,fraction_data,variable_data,normalized_weights)
+                   temporal_means.append(value)
+                   var_stats_catalog.calculate_requested_statistics(weights,value,region_name)
+
+               # updated_region = var_stats_catalog.regions.get(region_name)
+               # print("updated region ",region_name,"  ",updated_region)
+
+            for iregion in range(len(self.config.regions)):
+                region_name = list(self.config.regions.keys())[iregion]
+                for j, statistic in enumerate(self.config.get_stats()):
+                    """ The j loop iterates through each requested 
+                        statistic and region.
+                        """
+                    if statistic == 'mean':
+                       value = self.config.regions[region_name]['mean']
+                       print(variable,"  ",value)                
+                    elif statistic == 'variance':
+                       value = self.config.regions[region_name]['variance']         
+                                         
+                    elif statistic == 'maximum':
+                       value = self.config.regions[region_name]['maximum']
+                    
+                    elif statistic == 'minimum':
+                       value = self.config.regions[region_name]['minimum']
+                    
+                    harvested_data.append(HarvestedData(
+                                          self.config.harvest_filenames,
+                                          statistic, 
+                                          variable,
+                                          np.float32(value),
+                                          units,
+                                          dt.fromisoformat(median_cftime.isoformat()),
+                                          longname,
+                                          self.config.surface_mask,
+                                          regions_copy))
+ 
+      
         gridcell_area_data.close()
         xr_dataset.close()
         return harvested_data
