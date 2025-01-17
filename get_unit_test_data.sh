@@ -13,5 +13,5 @@
 aws s3 ls s3://noaa-reanalyses-pds/score_suite/test_data/ --no-sign-request
 
 #To copy a file to a local directory. cd to local directory then type:
-aws s3 cp s3://noaa-reanalyses-pds/score_suite/test_data/*tests/data/ --no-sign-request
+aws s3 cp s3://noaa-reanalyses-pds/score_suite/test_data/* tests/data/ --no-sign-request
 
